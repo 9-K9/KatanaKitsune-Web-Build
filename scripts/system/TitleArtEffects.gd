@@ -5,10 +5,7 @@ extends Control
 ## The whole component processes while paused so the pause menu remains alive.
 
 @export var cover_path: NodePath
-## Kept available for a later art pass, but disabled for release because the
-## current procedural closure does not yet match the painted eyelids closely
-## enough at every display scale.
-@export var blink_enabled: bool = false
+@export var blink_enabled: bool = true
 @export_range(2.0, 12.0, 0.1) var blink_min_seconds: float = 3.0
 @export_range(2.0, 12.0, 0.1) var blink_max_seconds: float = 6.5
 
@@ -98,11 +95,11 @@ func _sync_heroine() -> void:
 	if _material == null:
 		return
 	if _karma:
-		_material.set_shader_parameter("left_eye", Vector4(0.668, 0.255, 0.046, 0.061))
-		_material.set_shader_parameter("right_eye", Vector4(0.710, 0.226, 0.047, 0.061))
+		_material.set_shader_parameter("left_eye", Vector4(0.668, 0.246, 0.046, 0.061))
+		_material.set_shader_parameter("right_eye", Vector4(0.710, 0.217, 0.047, 0.061))
 	else:
-		_material.set_shader_parameter("left_eye", Vector4(0.677, 0.257, 0.044, 0.061))
-		_material.set_shader_parameter("right_eye", Vector4(0.720, 0.231, 0.044, 0.061))
+		_material.set_shader_parameter("left_eye", Vector4(0.677, 0.248, 0.044, 0.061))
+		_material.set_shader_parameter("right_eye", Vector4(0.720, 0.222, 0.044, 0.061))
 
 
 func _build_leaves() -> void:

@@ -19,11 +19,17 @@ func _run() -> void:
 	add_child(title)
 	await get_tree().create_timer(1.0).timeout
 	await _capture("kitsune-leaves")
+	var effects := title.get_node("UI/TitleArtEffects") as TitleArtEffects
+	effects._material.set_shader_parameter("blink", 1.0)
+	await _capture("kitsune-blink")
+	effects._material.set_shader_parameter("blink", 0.0)
 	CheatManager.set_karmageisha(true)
 	var cover := title.get_node("UI/Background") as TextureRect
 	cover.texture = load(PowerState.cover_path())
 	await get_tree().process_frame
 	await _capture("karma-geisha-leaves")
+	effects._material.set_shader_parameter("blink", 1.0)
+	await _capture("karma-geisha-blink")
 	CheatManager.set_karmageisha(was_karma)
 	get_tree().quit()
 
