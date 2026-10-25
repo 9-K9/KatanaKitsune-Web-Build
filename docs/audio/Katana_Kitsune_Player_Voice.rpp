@@ -1,0 +1,269 @@
+<REAPER_PROJECT 0.1 "7.82/linux-x86_64" 1770000000
+  RIPPLE 0
+  AUTOXFADE 1
+  TEMPO 120 4 4
+  <TRACK
+    NAME "vox_kitsune_attack_01"
+    <ITEM
+      POSITION 0.000000
+      LENGTH 0.327000
+      NAME "vox_kitsune_attack_01"
+      <SOURCE WAVE
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/final/vox_kitsune_attack_01.wav"
+      >
+    >
+  >
+  <TRACK
+    NAME "vox_kitsune_attack_02"
+    <ITEM
+      POSITION 0.527000
+      LENGTH 0.336100
+      NAME "vox_kitsune_attack_02"
+      <SOURCE WAVE
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/final/vox_kitsune_attack_02.wav"
+      >
+    >
+  >
+  <TRACK
+    NAME "vox_kitsune_attack_03"
+    <ITEM
+      POSITION 1.063100
+      LENGTH 0.370000
+      NAME "vox_kitsune_attack_03"
+      <SOURCE WAVE
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/final/vox_kitsune_attack_03.wav"
+      >
+    >
+  >
+  <TRACK
+    NAME "vox_kitsune_attack_04"
+    <ITEM
+      POSITION 1.633100
+      LENGTH 0.425700
+      NAME "vox_kitsune_attack_04"
+      <SOURCE WAVE
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/final/vox_kitsune_attack_04.wav"
+      >
+    >
+  >
+  <TRACK
+    NAME "vox_kitsune_attack_05"
+    <ITEM
+      POSITION 2.258800
+      LENGTH 0.394100
+      NAME "vox_kitsune_attack_05"
+      <SOURCE WAVE
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/final/vox_kitsune_attack_05.wav"
+      >
+    >
+  >
+  <TRACK
+    NAME "vox_kitsune_attack_06"
+    <ITEM
+      POSITION 2.852900
+      LENGTH 0.360400
+      NAME "vox_kitsune_attack_06"
+      <SOURCE WAVE
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/final/vox_kitsune_attack_06.wav"
+      >
+    >
+  >
+  <TRACK
+    NAME "vox_kitsune_attack_07"
+    <ITEM
+      POSITION 3.413300
+      LENGTH 0.429100
+      NAME "vox_kitsune_attack_07"
+      <SOURCE WAVE
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/final/vox_kitsune_attack_07.wav"
+      >
+    >
+  >
+  <TRACK
+    NAME "vox_kitsune_attack_08"
+    <ITEM
+      POSITION 4.042400
+      LENGTH 0.538000
+      NAME "vox_kitsune_attack_08"
+      <SOURCE WAVE
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/final/vox_kitsune_attack_08.wav"
+      >
+    >
+  >
+  <TRACK
+    NAME "vox_kitsune_movement_01"
+    <ITEM
+      POSITION 4.780400
+      LENGTH 0.514200
+      NAME "vox_kitsune_movement_01"
+      <SOURCE WAVE
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/final/vox_kitsune_movement_01.wav"
+      >
+    >
+  >
+  <TRACK
+    NAME "vox_kitsune_movement_02"
+    <ITEM
+      POSITION 5.494600
+      LENGTH 0.770400
+      NAME "vox_kitsune_movement_02"
+      <SOURCE WAVE
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/final/vox_kitsune_movement_02.wav"
+      >
+    >
+  >
+  <TRACK
+    NAME "vox_kitsune_movement_03"
+    <ITEM
+      POSITION 6.465000
+      LENGTH 0.704100
+      NAME "vox_kitsune_movement_03"
+      <SOURCE WAVE
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/final/vox_kitsune_movement_03.wav"
+      >
+    >
+  >
+  <TRACK
+    NAME "vox_kitsune_movement_04"
+    <ITEM
+      POSITION 7.369100
+      LENGTH 0.403500
+      NAME "vox_kitsune_movement_04"
+      <SOURCE WAVE
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/final/vox_kitsune_movement_04.wav"
+      >
+    >
+  >
+  <TRACK
+    NAME "vox_kitsune_movement_05"
+    <ITEM
+      POSITION 7.972600
+      LENGTH 0.485200
+      NAME "vox_kitsune_movement_05"
+      <SOURCE WAVE
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/final/vox_kitsune_movement_05.wav"
+      >
+    >
+  >
+  <TRACK
+    NAME "vox_kitsune_movement_06"
+    <ITEM
+      POSITION 8.657800
+      LENGTH 0.303300
+      NAME "vox_kitsune_movement_06"
+      <SOURCE WAVE
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/final/vox_kitsune_movement_06.wav"
+      >
+    >
+  >
+  <TRACK
+    NAME "vox_kitsune_movement_07"
+    <ITEM
+      POSITION 9.161100
+      LENGTH 0.781400
+      NAME "vox_kitsune_movement_07"
+      <SOURCE WAVE
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/final/vox_kitsune_movement_07.wav"
+      >
+    >
+  >
+  <TRACK
+    NAME "vox_kitsune_movement_08"
+    <ITEM
+      POSITION 10.142500
+      LENGTH 0.734300
+      NAME "vox_kitsune_movement_08"
+      <SOURCE WAVE
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/final/vox_kitsune_movement_08.wav"
+      >
+    >
+  >
+  <TRACK
+    NAME "vox_kitsune_movement_09"
+    <ITEM
+      POSITION 11.076800
+      LENGTH 0.494200
+      NAME "vox_kitsune_movement_09"
+      <SOURCE WAVE
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/final/vox_kitsune_movement_09.wav"
+      >
+    >
+  >
+  <TRACK
+    NAME "vox_kitsune_movement_10"
+    <ITEM
+      POSITION 11.771000
+      LENGTH 0.433900
+      NAME "vox_kitsune_movement_10"
+      <SOURCE WAVE
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/final/vox_kitsune_movement_10.wav"
+      >
+    >
+  >
+  <TRACK
+    NAME "vox_kitsune_movement_11"
+    <ITEM
+      POSITION 12.404900
+      LENGTH 0.217200
+      NAME "vox_kitsune_movement_11"
+      <SOURCE WAVE
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/final/vox_kitsune_movement_11.wav"
+      >
+    >
+  >
+  <TRACK
+    NAME "vox_kitsune_movement_12"
+    <ITEM
+      POSITION 12.822100
+      LENGTH 0.355600
+      NAME "vox_kitsune_movement_12"
+      <SOURCE WAVE
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/final/vox_kitsune_movement_12.wav"
+      >
+    >
+  >
+  <TRACK
+    NAME "vox_kitsune_movement_13"
+    <ITEM
+      POSITION 13.377700
+      LENGTH 0.444400
+      NAME "vox_kitsune_movement_13"
+      <SOURCE WAVE
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/final/vox_kitsune_movement_13.wav"
+      >
+    >
+  >
+  <TRACK
+    NAME "vox_kitsune_movement_14"
+    <ITEM
+      POSITION 14.022100
+      LENGTH 0.506300
+      NAME "vox_kitsune_movement_14"
+      <SOURCE WAVE
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/final/vox_kitsune_movement_14.wav"
+      >
+    >
+  >
+  <TRACK
+    NAME "vox_kitsune_movement_15"
+    <ITEM
+      POSITION 14.728400
+      LENGTH 0.429800
+      NAME "vox_kitsune_movement_15"
+      <SOURCE WAVE
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/final/vox_kitsune_movement_15.wav"
+      >
+    >
+  >
+  <TRACK
+    NAME "vox_kitsune_movement_16"
+    <ITEM
+      POSITION 15.358200
+      LENGTH 0.552900
+      NAME "vox_kitsune_movement_16"
+      <SOURCE WAVE
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/final/vox_kitsune_movement_16.wav"
+      >
+    >
+  >
+>

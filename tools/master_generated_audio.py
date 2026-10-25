@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import csv
+import argparse
 import json
 import math
 import os
@@ -134,9 +135,9 @@ def master_one(src: Path, row: dict[str, str] | None) -> dict[str, object]:
     }
 
 
-def write_report(records: list[dict[str, object]]) -> None:
+def write_report(records: list[dict[str, object]], report: Path = REPORT) -> None:
     fields = list(records[0])
-    with REPORT.open("w", newline="", encoding="utf-8") as handle:
+    with report.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields)
         writer.writeheader()
         writer.writerows(records)
@@ -146,7 +147,7 @@ def rpp_quote(path: Path) -> str:
     return str(path).replace('"', '\\"')
 
 
-def write_reaper_project(records: list[dict[str, object]]) -> None:
+def write_reaper_project(records: list[dict[str, object]], rpp: Path = RPP) -> None:
     by_category: dict[str, list[dict[str, object]]] = {}
     for record in records:
         by_category.setdefault(str(record["category"]), []).append(record)
@@ -175,26 +176,45 @@ def write_reaper_project(records: list[dict[str, object]]) -> None:
             cursor += length + 0.25
         lines.append('  >')
     lines.append('>')
-    RPP.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    rpp.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("sources", nargs="*", type=Path,
+                        help="specific source files to master (defaults to every raw MP3)")
+    parser.add_argument("--jobs", type=int, default=min(6, os.cpu_count() or 2),
+                        help="parallel mastering jobs; use 1 on memory-constrained machines")
+    parser.add_argument("--report", type=Path, default=REPORT,
+                        help="CSV mastering report path")
+    parser.add_argument("--rpp", type=Path, default=RPP,
+                        help="REAPER review project path")
+    args = parser.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
     rows = manifest_rows()
-    sources = sorted(RAW.glob("*.mp3"))
+    sources = [path.resolve() for path in args.sources] if args.sources else sorted(RAW.glob("*.mp3"))
+    if not sources:
+        raise SystemExit("No source audio files found")
+    missing = [path for path in sources if not path.is_file()]
+    if missing:
+        raise SystemExit("Missing source files: " + ", ".join(str(path) for path in missing))
     records: list[dict[str, object]] = []
-    with ThreadPoolExecutor(max_workers=min(6, os.cpu_count() or 2)) as pool:
+    with ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
         futures = {pool.submit(master_one, src, match_row(src.name, rows)): src for src in sources}
         for count, future in enumerate(as_completed(futures), 1):
             record = future.result()
             records.append(record)
             print(f"[{count}/{len(sources)}] {record['output']}", flush=True)
     records.sort(key=lambda record: str(record["output"]))
-    write_report(records)
-    write_reaper_project(records)
+    report = args.report.resolve()
+    rpp = args.rpp.resolve()
+    report.parent.mkdir(parents=True, exist_ok=True)
+    rpp.parent.mkdir(parents=True, exist_ok=True)
+    write_report(records, report)
+    write_reaper_project(records, rpp)
     print(f"Mastered {len(records)} assets into {OUT}")
-    print(f"Report: {REPORT}")
-    print(f"REAPER project: {RPP}")
+    print(f"Report: {report}")
+    print(f"REAPER project: {rpp}")
 
 
 if __name__ == "__main__":

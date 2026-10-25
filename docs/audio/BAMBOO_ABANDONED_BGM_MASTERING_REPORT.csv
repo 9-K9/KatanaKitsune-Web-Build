@@ -1,0 +1,5 @@
+source,output,category,loop,channels,sample_rate,original_seconds,finished_seconds,trimmed_seconds,peak_dbfs
+assets/audio/generated/raw/biome_bgm/music_abandoned_calm.wav,assets/audio/generated/optimized/music_abandoned_calm.ogg,Other,Yes,2,48000,120.0,120.0,0.0,-2.1
+assets/audio/generated/raw/biome_bgm/music_abandoned_danger.wav,assets/audio/generated/optimized/music_abandoned_danger.ogg,Other,Yes,2,48000,120.0,120.0,0.0,-6.0
+assets/audio/generated/raw/biome_bgm/music_bamboo_calm.wav,assets/audio/generated/optimized/music_bamboo_calm.ogg,Other,Yes,2,48000,120.0,120.0,0.0,-8.5
+assets/audio/generated/raw/biome_bgm/music_bamboo_danger.wav,assets/audio/generated/optimized/music_bamboo_danger.ogg,Other,Yes,2,48000,120.0,120.0,0.0,-8.7

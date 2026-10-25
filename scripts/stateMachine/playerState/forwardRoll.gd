@@ -14,6 +14,7 @@ var _length: float = 0.0
 
 func on_enter():
 	AudioManager.play_for("sfx_player_roll", pc)
+	AudioManager.play_for("vox_kitsune_movement", pc, -7.0)
 	pc.actionBlockInput = true
 	## Rolls the way she is facing if she is standing still.
 	var input: Vector2 = pc.InputHandler()

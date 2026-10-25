@@ -149,6 +149,13 @@ func go_to(path: String, title: String = "LOADING") -> void:
 	_path = path
 	_loading = true
 	begin(title, path.get_file())
+	## Wait for an actual draw, not merely the next process tick, before asking
+	## the loader to touch the destination. On Web a warm resource cache can
+	## finish immediately, and procedural setup can then occupy the main thread
+	## before the browser ever composites a process-frame-only overlay.
+	await RenderingServer.frame_post_draw
+	if not _loading or _path != path:
+		return
 
 	## Sub-threads matter here: the dungeon's scene pulls in a deep tree of
 	## rooms, props and characters, and loading those dependencies one after

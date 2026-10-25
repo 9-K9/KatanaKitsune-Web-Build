@@ -36,6 +36,11 @@ static func definition(which: int) -> LevelTheme:
 			NAMES[clampi(which, 0, NAMES.size() - 1)]) as LevelTheme
 
 
+static func music_key(which: int) -> String:
+	return ["sakura", "bamboo", "abandoned", "desert", "snow"][
+			clampi(which, 0, NAMES.size() - 1)]
+
+
 func exterior_biome() -> ExteriorBiome:
 	var result := ExteriorBiome.definition(biome).duplicate() as ExteriorBiome
 	if not trees.is_empty():

@@ -14,6 +14,7 @@ var _rest_offset: Vector2 = Vector2.ZERO
 
 func on_enter():
 	AudioManager.play_for("sfx_player_jump_takeoff", pc)
+	AudioManager.play_for("vox_kitsune_movement", pc, -7.0)
 	pc.actionBlockInput = true
 	var input: Vector2 = pc.InputHandler()
 	_heading = input if input != Vector2.ZERO else pc.stateDirection(pc.facing_dir)

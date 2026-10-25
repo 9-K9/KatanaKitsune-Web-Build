@@ -109,9 +109,17 @@ func _process_standalone() -> void:
 		return
 	var who := _pause_pressed()
 	if who != NO_OWNER and _may_toggle(who):
-		get_tree().paused = not get_tree().paused
-		_owner_changed(who if get_tree().paused else NO_OWNER)
-	_set_shown(get_tree().paused)
+		if NetworkManager.is_client:
+			# The server keeps the match running when one player opens a menu.
+			# Freezing this client's SceneTree would stop cameras, interpolation,
+			# weather and remote actors while the authoritative world moved on.
+			game_paused = not game_paused
+			_owner_changed(who if game_paused else NO_OWNER)
+		else:
+			get_tree().paused = not get_tree().paused
+			game_paused = get_tree().paused
+			_owner_changed(who if game_paused else NO_OWNER)
+	_set_shown(game_paused if NetworkManager.is_client else get_tree().paused)
 
 
 ## ------------------------------------------------------------ ownership
@@ -258,9 +266,12 @@ func _set_shown(should_show: bool) -> void:
 func _on_resume_pressed():
 	if _has_manager():
 		gameManager.setState("game_play")
+	elif NetworkManager.is_client:
+		game_paused = false
 	else:
 		get_tree().paused = false
 	_owner_changed(NO_OWNER)
+	_set_shown(false)
 	_show_main_menu()
 
 func _on_cheats_pressed() -> void:
@@ -344,6 +355,7 @@ func _on_quit_pressed():
 	## Leaving the map has to lift the pause too, or the title screen loads
 	## into a frozen tree.
 	get_tree().paused = false
+	game_paused = false
 	NetworkManager.stop()
 	if _has_manager():
 		gameManager.setState("game_title")

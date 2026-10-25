@@ -1,0 +1,2 @@
+source,output,category,loop,channels,sample_rate,original_seconds,finished_seconds,trimmed_seconds,peak_dbfs
+assets/audio/generated/raw/biome_bgm/music_sakura_calm.wav,assets/audio/generated/optimized/music_sakura_calm.ogg,Other,Yes,2,48000,120.0,120.0,0.0,-6.9

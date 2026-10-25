@@ -108,6 +108,21 @@ func is_pond(cell: Vector2i) -> bool:
 	return kind.get(cell, -1) == Kind.POND
 
 
+## Makes the selected spawn cell the compound's one invariant: a one-room
+## refuge. Everything else remains seeded and procedural. Treating it as a
+## building before room instantiation gives it walls, a roof and a guaranteed
+## entrance through the same architecture path as every other shrine.
+func make_safe_room(cell: Vector2i) -> void:
+	for cells in buildings:
+		if cells.has(cell):
+			cells.erase(cell)
+	road.erase(cell)
+	road_ends.erase(cell)
+	kind[cell] = Kind.BUILDING
+	building_of[cell] = buildings.size()
+	buildings.append([cell])
+
+
 # --- Planning ----------------------------------------------------------------
 
 ## Decides what every cell is. Runs before a single room exists, so the monster

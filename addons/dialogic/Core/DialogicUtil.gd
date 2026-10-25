@@ -652,7 +652,13 @@ static func get_character_suggestions(_search_text:String, current_value:Dialogi
 	# Get characters in the current timeline and place them at the top of suggestions.
 	if editor_node:
 		var recent_characters := []
-		var timeline_node := editor_node.get_parent().find_parent("Timeline") as DialogicEditor
+		# This utility is also compiled in runtime exports, where Dialogic's
+		# Editor directory is deliberately excluded. Keeping the local typed as
+		# DialogicEditor makes the runtime compiler depend on that editor-only
+		# class and caused the web build's dependent resource scripts to fail.
+		var timeline_node: Node = editor_node.get_parent().find_parent("Timeline")
+		if timeline_node == null:
+			return suggestions
 		for event_node in timeline_node.find_child("Timeline").get_children():
 			if event_node == editor_node:
 				break

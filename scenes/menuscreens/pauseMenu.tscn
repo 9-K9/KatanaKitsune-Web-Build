@@ -4,6 +4,7 @@
 [ext_resource type="Script" path="res://scripts/system/SettingsPanel.gd" id="4_settings"]
 [ext_resource type="Texture2D" path="res://assets/sprites/ui/title_cover_kitsune.png" id="3_cover"]
 [ext_resource type="Theme" path="res://assets/sprites/ui/katanaKitsune.theme.tres" id="2_theme"]
+[ext_resource type="Script" path="res://scripts/system/TitleArtEffects.gd" id="5_art_fx"]
 
 [node name="PauseMenu" type="CanvasLayer"]
 layer = 5
@@ -18,6 +19,14 @@ mouse_filter = 2
 texture = ExtResource("3_cover")
 expand_mode = 1
 stretch_mode = 6
+
+[node name="TitleArtEffects" type="Control" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+script = ExtResource("5_art_fx")
+cover_path = NodePath("../Cover")
 
 [node name="Fade" type="ColorRect" parent="."]
 anchors_preset = 15

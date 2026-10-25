@@ -280,6 +280,10 @@ var _theme_index: int = -1
 ## the next wave would start instantly and forever.
 var _wave_live: bool = false
 var _clearing: bool = false
+const MUSIC_DANGER_RELEASE: float = 8.0
+var _music_danger: bool = false
+var _music_safe_time: float = 0.0
+var _music_event: String = ""
 ## The level-up screen is open between floors.
 var _upgrading: bool = false
 ## Set when a lost pad is what paused the floor, so reconnecting only lifts
@@ -450,6 +454,9 @@ func _descend_with(seed: int, new_depth: int) -> void:
 	_streamer = null
 	_wave_live = false
 	_clearing = false
+	_music_event = ""
+	_music_danger = false
+	_music_safe_time = 0.0
 	## One frame for the queue_free calls above to actually happen. They are
 	## deferred, so until the frame ends every monster on the old floor is still
 	## alive and still holding a reference to its sprite sheets — dropping the
@@ -767,6 +774,7 @@ func _build() -> void:
 			_ext.biome = LevelTheme.definition(LevelTheme.Id.SAKURA_GARDENS).exterior_biome()
 		_ext.plan()
 		_start_cell = _ext.start_cell
+		_ext.make_safe_room(_start_cell)
 	await _load_floor_monsters(_start_cell)
 	if not is_inside_tree():
 		return
@@ -832,7 +840,7 @@ func _build() -> void:
 	## Armed only now: _populate has run, so an empty room from here really does
 	## mean the wave was cleared rather than that it has not started.
 	_wave_live = true
-	AudioManager.play_music("music_combat", -6.0)
+	_set_adaptive_music(false)
 	_light()
 	if _ext != null and not OS.has_feature("dedicated_server"):
 		_weather = OutdoorWeather.new()
@@ -991,7 +999,7 @@ func _populate(step: Vector2) -> void:
 						_boss_placed = true
 					monster.apply_tier(rung, depth)
 		var prop_pool := _prop_pool()
-		if not prop_pool.is_empty() and not outdoors:
+		if cell != start and not prop_pool.is_empty() and not outdoors:
 			var m: int = _rng.randi_range(props_per_room.x, props_per_room.y)
 			for i in m:
 				var family: Array = prop_pool[_rng.randi_range(0, prop_pool.size() - 1)]
@@ -1011,7 +1019,7 @@ func _populate(step: Vector2) -> void:
 			var critters: int = int(round(_rng.randi_range(animals_per_room.x, animals_per_room.y) * density))
 			for i in critters:
 				_place(here, wildlife[_rng.randi_range(0, wildlife.size() - 1)])
-		if not table_scenes.is_empty() and not outdoors and _rng.randf() < table_chance:
+		if cell != start and not table_scenes.is_empty() and not outdoors and _rng.randf() < table_chance:
 			_place_dining_set(here)
 		if trap_scene != null and cell != start and not outdoors and _rng.randf() < trap_chance:
 			_place_trap_run(here)
@@ -1323,6 +1331,8 @@ func _place_architecture() -> void:
 		_ext.door_points.clear()
 		for entrance in _ext.entrances:
 			_ext.door_points.append(_put_door(entrance[0], entrance[1]))
+	else:
+		_place_safe_room_door()
 
 	## Doors. Each shared gap is visited once, from the room on its NW/NE side,
 	## and either room's half of the pair may carry the door.
@@ -1380,6 +1390,21 @@ func _place_architecture() -> void:
 			if partner != null:
 				_erase_nearest(partner, layer.to_global(layer.map_to_local(window_cell)))
 			_add_window(layer, window_cell, dir)
+
+
+## Indoor mazes normally roll doors by chance. The start room alone gets one
+## unconditionally, using an opening the spanning tree already carved so it can
+## never be a decorative door into a dead wall.
+func _place_safe_room_door() -> void:
+	var room: Node = _rooms.get(_start_cell)
+	if room == null or not room.has_method("open_sides"):
+		return
+	var exits: Array = room.open_sides()
+	exits = exits.filter(func(side): return _rooms.has(_start_cell + NEIGHBOUR[side]))
+	if exits.is_empty():
+		push_error("MazeDemo: generated start room has no exit")
+		return
+	_put_door(_start_cell, exits[_rng.randi_range(0, exits.size() - 1)])
 
 
 ## Hangs a door in `cell`'s wall on `side`, leaving the neighbour's half of the
@@ -1587,7 +1612,9 @@ func _place_starting_chair() -> void:
 	if chair_scene == null or _player == null:
 		return
 	## Beside the spawn, off to one side so she does not begin standing on it.
-	_add_chair(_player.global_position + Vector2(150.0, 75.0), "StartingChair")
+	var safe_chair := _add_chair(_player.global_position + Vector2(150.0, 75.0), "StartingChair")
+	if safe_chair != null:
+		safe_chair.set_meta("safe_room_chair", true)
 
 	## And in a scattering of other rooms, skipping the one she starts in.
 	var start := _start_cell
@@ -1740,7 +1767,7 @@ func _place_dining_set(room: Node2D) -> void:
 		(chair as Node2D).global_position = where
 
 
-func _add_chair(where: Vector2, named: String) -> void:
+func _add_chair(where: Vector2, named: String) -> Node:
 	var chair := WorldObjects.choose(chair_scene, _rng).instantiate()
 	chair.name = named
 	## Turned before it is added, so the setter has run by the time _ready picks
@@ -1750,6 +1777,7 @@ func _add_chair(where: Vector2, named: String) -> void:
 		chair.face_randomly(_rng)
 	add_child(chair)
 	(chair as Node2D).global_position = where
+	return chair
 
 
 ## Throws away any chair standing inside something solid.
@@ -1769,6 +1797,11 @@ func _clear_buried_chairs() -> void:
 	var removed := 0
 	for chair in get_tree().get_nodes_in_group("chair"):
 		if not (chair is Node2D):
+			continue
+		## This is the floor's guaranteed heal point. Random furniture is culled
+		## when buried; the safe-room chair is an invariant and its room is kept
+		## free of random props above.
+		if chair.has_meta("safe_room_chair"):
 			continue
 		## A shape rather than a point. Testing the exact centre only caught a
 		## chair standing *inside* something; one tucked against a column passed,
@@ -1908,6 +1941,7 @@ func bot_navigation_contains(point: Vector2) -> bool:
 
 
 func _physics_process(delta: float) -> void:
+	_enforce_safe_room()
 	if bot_controls_active():
 		refresh_party_control()
 	if not get_tree().paused and not SceneLoader.is_active() \
@@ -1916,6 +1950,7 @@ func _physics_process(delta: float) -> void:
 		_update_daylight()
 	_track_party(delta)
 	_check_wave_cleared()
+	_update_adaptive_music(delta)
 	if _ext != null and not _building:
 		_ext.update_roofs(delta, Roster.bodies(get_tree()))
 		if is_instance_valid(_weather):
@@ -1925,6 +1960,84 @@ func _physics_process(delta: float) -> void:
 				var size: Vector2 = get_viewport_rect().size / camera.zoom
 				views.append(Rect2(camera.get_screen_center_position() - size * 0.5, size))
 			_weather.update_weather(delta, views)
+
+
+## True for the authored floor diamond of the start room. EnemyBase uses this
+## to ignore protected players, and the server/solo authority below rejects any
+## hostile body that reaches across the doorway because of knockback or a
+## phasing movement trait.
+func safe_room_contains(world: Vector2) -> bool:
+	var room := _rooms.get(_start_cell) as Node2D
+	if room == null:
+		return false
+	var ground := room.get_node_or_null("TileMap/Ground") as TileMapLayer
+	return ground != null and ground.get_cell_source_id(
+			ground.local_to_map(ground.to_local(world))) != -1
+
+
+func _enforce_safe_room() -> void:
+	if _building or _clearing or NetworkManager.is_client:
+		return
+	for enemy in get_tree().get_nodes_in_group("enemy"):
+		if not (enemy is Node2D) or enemy.get("is_dead") == true:
+			continue
+		if safe_room_contains(enemy.global_position):
+			var fallback: Variant = enemy.get_meta("safe_room_last_outside", null)
+			if fallback is Vector2:
+				enemy.global_position = fallback
+			if enemy is CharacterBody2D:
+				(enemy as CharacterBody2D).velocity = Vector2.ZERO
+		else:
+			enemy.set_meta("safe_room_last_outside", enemy.global_position)
+
+
+func _update_adaptive_music(delta: float) -> void:
+	if not _wave_live or _clearing or _building:
+		return
+	var danger := _party_is_hunted()
+	if danger:
+		_music_safe_time = 0.0
+		_set_adaptive_music(true)
+	elif _music_danger:
+		_music_safe_time += delta
+		if _music_safe_time >= MUSIC_DANGER_RELEASE:
+			_set_adaptive_music(false)
+
+
+func _party_is_hunted() -> bool:
+	for node in get_tree().get_nodes_in_group("enemy"):
+		if not is_instance_valid(node) or node.get("is_dead") == true:
+			continue
+		var machine = node.get("state_machine")
+		if is_instance_valid(machine):
+			var current = machine.get("current_state")
+			if is_instance_valid(current) and String(current.name).to_lower() not in ["idle", "hurt", "death"]:
+				return true
+		var sprite := node.get_node_or_null("AnimatedSprite2D") as AnimatedSprite2D
+		if sprite == null:
+			continue
+		var animation := String(sprite.animation).to_lower()
+		for marker in ["run", "alert", "attack", "charge", "cast", "shoot", "lunge", "stomp", "crit", "heavy"]:
+			if animation.contains(marker):
+				return true
+	return false
+
+
+func _set_adaptive_music(danger: bool) -> void:
+	var event := music_event_for_theme(
+			_level_theme.id if _level_theme != null else LevelTheme.Id.SAKURA_GARDENS,
+			danger)
+	if event == _music_event:
+		return
+	_music_event = event
+	_music_danger = danger
+	_music_safe_time = 0.0
+	AudioManager.play_music(event, -7.0 if danger else -8.0)
+
+
+static func music_event_for_theme(theme_id: int, danger: bool) -> String:
+	var theme := LevelTheme.music_key(theme_id)
+	return "music_%s_%s" % [theme, "danger" if danger else "calm"]
 
 
 ## Brings the party up with the monsters, on the same curve and the same cap.

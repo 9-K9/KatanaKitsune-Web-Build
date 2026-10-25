@@ -469,7 +469,7 @@ func set_default_color(value:Variant) -> void:
 
 
 ## Called when the resource is assigned to a event block in the visual editor
-func _enter_visual_editor(_timeline_editor:DialogicEditor) -> void:
+func _enter_visual_editor(_timeline_editor: Node) -> void:
 	pass
 
 #endregion

@@ -548,7 +548,11 @@ func consume_pending_floor() -> Dictionary:
 
 func _start_session_scene() -> void:
 	get_tree().paused = false
-	get_tree().change_scene_to_file(MATCH_SCENE)
+	## Match the solo transition. A direct scene change skips the autoloaded
+	## overlay and lets procedural floor construction hold a blank/frozen frame.
+	## NetworkManager is PROCESS_MODE_ALWAYS, so transport stays alive while the
+	## local client is covered by the loader.
+	SceneLoader.go_to(MATCH_SCENE, "DESCENDING")
 
 
 ## --- World events -----------------------------------------------------------

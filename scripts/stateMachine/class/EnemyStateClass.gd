@@ -351,6 +351,10 @@ func player() -> CharacterBody2D:
 		## Under the Invisibility scroll she is simply not there to be found.
 		if node.has_method("is_invisible") and node.is_invisible():
 			continue
+		var world := get_parent()
+		if world != null and world.has_method("safe_room_contains") \
+				and world.safe_room_contains((node as Node2D).global_position):
+			continue
 		var distance: float = global_position.distance_squared_to(
 				(node as Node2D).global_position)
 		if distance < best_distance:

@@ -119,6 +119,15 @@ func _frames(count: int) -> void:
 		await get_tree().physics_frame
 
 
+func _key(code: Key, down: bool) -> void:
+	var event := InputEventKey.new()
+	event.keycode = code
+	event.physical_keycode = code
+	event.pressed = down
+	Input.parse_input_event(event)
+	Input.flush_buffered_events()
+
+
 func _roster_checks() -> void:
 	Roster.clear()
 	Roster.join(PlayerInput.KEYBOARD)
@@ -281,6 +290,51 @@ func _pause_checks() -> void:
 	_check(rows.get_child_count() == 2, "reopening does not duplicate rows")
 	menu._on_teammates_back_pressed()
 	_check(menu.main_menu.visible and not menu.teammates_menu.visible, "back returns to main menu")
+
+	# With no roster the menu deliberately reads project defaults, which keeps
+	# this independent of the developer's saved remapping profile.
+	Roster.clear()
+	menu._rebuild_pausers()
+	# Drive the menu explicitly below so test-node scheduling cannot make the
+	# synthetic event land just before or just after the menu's own _process.
+	menu.set_process(false)
+	for key in [KEY_ESCAPE, KEY_BACKSPACE, KEY_Q]:
+		_key(key, true)
+		await get_tree().process_frame
+		menu._process_standalone()
+		_check(get_tree().paused and menu.visible,
+				"%s opens pause and freezes solo simulation" % OS.get_keycode_string(key))
+		_check(menu.process_mode == Node.PROCESS_MODE_ALWAYS,
+				"pause menu remains interactive while the tree is paused")
+		_key(key, false)
+		await get_tree().process_frame
+		menu._process_standalone()
+		_key(key, true)
+		await get_tree().process_frame
+		menu._process_standalone()
+		_check(not get_tree().paused and not menu.visible,
+				"%s closes pause and resumes solo simulation" % OS.get_keycode_string(key))
+		_key(key, false)
+		await get_tree().process_frame
+		menu._process_standalone()
+
+	# A network client owns only a local overlay. Pausing its SceneTree would
+	# freeze interpolation, cameras, weather and all remote actors while the
+	# authoritative server continued the match underneath it.
+	NetworkManager.is_client = true
+	NetworkManager.set_physics_process(false)
+	_key(KEY_ESCAPE, true)
+	await get_tree().process_frame
+	menu._process_standalone()
+	_check(menu.visible and not get_tree().paused,
+			"online pause opens locally without freezing client simulation")
+	_key(KEY_ESCAPE, false)
+	await get_tree().process_frame
+	menu._process_standalone()
+	menu._on_resume_pressed()
+	_check(not menu.visible and not get_tree().paused, "online Resume closes the local overlay")
+	NetworkManager.is_client = false
+	NetworkManager.set_physics_process(true)
 	menu.queue_free()
 	await _frames(2)
 

@@ -1,0 +1,73 @@
+<REAPER_PROJECT 0.1 "7.82/linux-x86_64" 1770000000
+  RIPPLE 0
+  GROUPOVERRIDE 0 0 0
+  AUTOXFADE 1
+  TEMPO 120 4 4
+  PLAYRATE 1 0 0.25 4
+  <TRACK
+    NAME "Other"
+    PEAKCOL 16576
+    BEAT -1
+    AUTOMODE 0
+    <ITEM
+      POSITION 0.000000
+      LENGTH 120.100000
+      NAME "music_desert_calm"
+      FADEIN 1 0.005 0 1 0 0
+      FADEOUT 1 0.005 0 1 0 0
+      <SOURCE VORBIS
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/optimized/music_desert_calm.ogg"
+      >
+    >
+    <ITEM
+      POSITION 120.350000
+      LENGTH 120.100000
+      NAME "music_desert_danger"
+      FADEIN 1 0.005 0 1 0 0
+      FADEOUT 1 0.005 0 1 0 0
+      <SOURCE VORBIS
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/optimized/music_desert_danger.ogg"
+      >
+    >
+    <ITEM
+      POSITION 240.700000
+      LENGTH 120.100000
+      NAME "music_sakura_calm"
+      FADEIN 1 0.005 0 1 0 0
+      FADEOUT 1 0.005 0 1 0 0
+      <SOURCE VORBIS
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/optimized/music_sakura_calm.ogg"
+      >
+    >
+    <ITEM
+      POSITION 361.050000
+      LENGTH 120.100000
+      NAME "music_sakura_danger"
+      FADEIN 1 0.005 0 1 0 0
+      FADEOUT 1 0.005 0 1 0 0
+      <SOURCE VORBIS
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/optimized/music_sakura_danger.ogg"
+      >
+    >
+    <ITEM
+      POSITION 481.400000
+      LENGTH 120.100000
+      NAME "music_snow_calm"
+      FADEIN 1 0.005 0 1 0 0
+      FADEOUT 1 0.005 0 1 0 0
+      <SOURCE VORBIS
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/optimized/music_snow_calm.ogg"
+      >
+    >
+    <ITEM
+      POSITION 601.750000
+      LENGTH 120.100000
+      NAME "music_snow_danger"
+      FADEIN 1 0.005 0 1 0 0
+      FADEOUT 1 0.005 0 1 0 0
+      <SOURCE VORBIS
+        FILE "/home/emanzi/Godot/KatanaKitsune_WIP/KatanaKitsune-Isometric-/assets/audio/generated/optimized/music_snow_danger.ogg"
+      >
+    >
+  >
+>

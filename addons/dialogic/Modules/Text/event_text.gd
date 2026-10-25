@@ -136,8 +136,11 @@ func _execute() -> void:
 			var is_append: bool = split_text[section_idx][1]
 
 			if character:
-				var character_prefix: String = character.custom_info.get(DialogicCharacterPrefixSuffixSection.PREFIX_CUSTOM_KEY, DialogicCharacterPrefixSuffixSection.DEFAULT_PREFIX)
-				var character_suffix: String = character.custom_info.get(DialogicCharacterPrefixSuffixSection.SUFFIX_CUSTOM_KEY, DialogicCharacterPrefixSuffixSection.DEFAULT_SUFFIX)
+				# Prefix/suffix are runtime character data. Do not depend here on
+				# DialogicCharacterPrefixSuffixSection, which is an editor-only UI
+				# class and is intentionally absent from release exports.
+				var character_prefix: String = character.custom_info.get("prefix", "")
+				var character_suffix: String = character.custom_info.get("suffix", "")
 
 				if len(split_text) == 1 or section_idx == 0 or not is_append:
 					section_text = character_prefix + section_text
@@ -411,7 +414,7 @@ func _get_property_original_translation(property:String) -> String:
 #region EVENT EDITOR
 ################################################################################
 
-func _enter_visual_editor(editor:DialogicEditor):
+func _enter_visual_editor(editor: Node):
 	editor.opened.connect(func(): ui_update_needed.emit())
 
 
