@@ -4,7 +4,7 @@ extends Node2D
 ## Title screen. GameManager sends the player here on "game_title".
 
 const SELECT := "res://scenes/menuscreens/characterSelect.tscn"
-const LOBBY := "res://scenes/menuscreens/onlineLobby.tscn"
+const FULL_VERSION_URL := "https://play.9-k9.io"
 
 ## The first button anywhere under `root`, focused so a controller has somewhere
 ## to start. Found by walking rather than by path, so moving a button in the
@@ -35,8 +35,9 @@ func _on_new_game_pressed():
 
 
 func _on_online_coop_pressed() -> void:
-	get_tree().paused = false
-	get_tree().change_scene_to_file(LOBBY)
+	## The downloadable itch.io Web Edition is deliberately offline. Keep the
+	## button useful by sending players to the registered full web edition.
+	OS.shell_open(FULL_VERSION_URL)
 
 
 func _on_settings_pressed() -> void:

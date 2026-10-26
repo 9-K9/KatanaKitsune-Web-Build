@@ -777,7 +777,8 @@ func _enter_level() -> void:
 
 
 func _take_level(index: int) -> void:
-	Roster.level_theme = index
+	## Defence in depth for the limited itch.io Web Edition.
+	Roster.level_theme = LevelTheme.Id.SAKURA_GARDENS
 	_start_game()
 
 

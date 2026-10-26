@@ -150,7 +150,7 @@ theme_override_styles/normal = SubResource("StyleBox_button_normal")
 theme_override_styles/pressed = SubResource("StyleBox_button_pressed")
 theme_override_styles/hover = SubResource("StyleBox_button_hover")
 theme_override_styles/focus = SubResource("StyleBox_button_hover")
-text = "◆   ONLINE CO-OP   ◆"
+text = "◆   FULL ONLINE — 9-K9.IO   ◆"
 
 [node name="Settings" type="Button" parent="UI/SafeArea/VBox/ButtonBox"]
 custom_minimum_size = Vector2(310, 38)
