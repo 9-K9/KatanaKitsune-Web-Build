@@ -9,14 +9,16 @@ extends Control
 @export_range(2.0, 12.0, 0.1) var blink_min_seconds: float = 3.0
 @export_range(2.0, 12.0, 0.1) var blink_max_seconds: float = 6.5
 
-const BLINK_SHADER := preload("res://shaders/title_blink.gdshader")
+const KITSUNE_BLINK := preload("res://assets/sprites/ui/blink_overlays/kitsune_closed_eyes.png")
+const KARMA_BLINK := preload("res://assets/sprites/ui/blink_overlays/karma_geisha_closed_eyes.png")
+const BLINK_ALIGNMENT := preload("res://assets/sprites/ui/blink_overlays/alignment.tres")
 const LEAF_TEXTURE := preload("res://assets/sprites/ui/title_leaf.svg")
 const BLINK_CLOSE_TIME: float = 0.075
 const BLINK_HOLD_TIME: float = 0.045
 const BLINK_OPEN_TIME: float = 0.095
 
 var _cover: TextureRect
-var _material: ShaderMaterial
+var _blink_overlay: TextureRect
 var _leaves: CPUParticles2D
 var _blink_wait: float = 0.0
 var _blink_clock: float = -1.0
@@ -33,10 +35,8 @@ func _ready() -> void:
 		push_warning("TitleArtEffects has no TextureRect at %s" % cover_path)
 		return
 	if blink_enabled:
-		_material = ShaderMaterial.new()
-		_material.shader = BLINK_SHADER
-		_cover.material = _material
-		_sync_cover_texture()
+		_build_blink_overlay()
+	_sync_cover_texture()
 	_sync_heroine()
 	_build_leaves()
 	_reschedule_blink()
@@ -46,7 +46,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if _material == null:
+	if _blink_overlay == null:
 		return
 	if _cover.texture != _last_texture:
 		_sync_cover_texture()
@@ -66,7 +66,7 @@ func _process(delta: float) -> void:
 	elif _blink_clock < total:
 		amount = 1.0 - ((_blink_clock - BLINK_CLOSE_TIME - BLINK_HOLD_TIME) / BLINK_OPEN_TIME)
 	else:
-		_material.set_shader_parameter("blink", 0.0)
+		_set_blink_amount(0.0)
 		_blink_clock = -1.0
 		if _double_blink:
 			_double_blink = false
@@ -74,7 +74,7 @@ func _process(delta: float) -> void:
 		else:
 			_reschedule_blink()
 		return
-	_material.set_shader_parameter("blink", smoothstep(0.0, 1.0, amount))
+	_set_blink_amount(smoothstep(0.0, 1.0, amount))
 
 
 func _reschedule_blink() -> void:
@@ -83,7 +83,6 @@ func _reschedule_blink() -> void:
 
 func _sync_cover_texture() -> void:
 	_last_texture = _cover.texture
-	_material.set_shader_parameter("cover_texture", _last_texture)
 
 
 func _on_karmageisha_changed(_active: bool) -> void:
@@ -92,14 +91,37 @@ func _on_karmageisha_changed(_active: bool) -> void:
 
 func _sync_heroine() -> void:
 	_karma = CheatManager.karmageisha_active
-	if _material == null:
+	if _blink_overlay == null:
 		return
-	if _karma:
-		_material.set_shader_parameter("left_eye", Vector4(0.668, 0.246, 0.046, 0.061))
-		_material.set_shader_parameter("right_eye", Vector4(0.710, 0.217, 0.047, 0.061))
-	else:
-		_material.set_shader_parameter("left_eye", Vector4(0.677, 0.248, 0.044, 0.061))
-		_material.set_shader_parameter("right_eye", Vector4(0.720, 0.222, 0.044, 0.061))
+	_blink_overlay.texture = KARMA_BLINK if _karma else KITSUNE_BLINK
+	_layout_blink_overlay()
+
+
+func _build_blink_overlay() -> void:
+	_blink_overlay = TextureRect.new()
+	_blink_overlay.name = "ClosedEyeOverlay"
+	_blink_overlay.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_blink_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_blink_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_blink_overlay.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_blink_overlay.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_blink_overlay.modulate.a = 0.0
+	add_child(_blink_overlay)
+	resized.connect(_layout_blink_overlay)
+
+
+func _set_blink_amount(amount: float) -> void:
+	if _blink_overlay != null:
+		_blink_overlay.modulate.a = clampf(amount, 0.0, 1.0)
+
+
+func _layout_blink_overlay() -> void:
+	if _blink_overlay == null:
+		return
+	var reference_offset: Vector2 = (BLINK_ALIGNMENT.karma_geisha_offset
+		if _karma else BLINK_ALIGNMENT.kitsune_offset)
+	var scale_factor := maxf(size.x / 768.0, size.y / 432.0)
+	_blink_overlay.position = reference_offset * scale_factor
 
 
 func _build_leaves() -> void:
