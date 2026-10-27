@@ -9,8 +9,8 @@ extends Control
 @export_range(2.0, 12.0, 0.1) var blink_min_seconds: float = 3.0
 @export_range(2.0, 12.0, 0.1) var blink_max_seconds: float = 6.5
 
-const KITSUNE_BLINK := preload("res://assets/sprites/ui/blink_overlays/kitsune_closed_eyes.png")
-const KARMA_BLINK := preload("res://assets/sprites/ui/blink_overlays/karma_geisha_closed_eyes.png")
+const KITSUNE_BLINK := preload("res://assets/sprites/ui/blink_overlays/kitsune_closed_eyes-noHair.png")
+const KARMA_BLINK := preload("res://assets/sprites/ui/blink_overlays/karma_geisha_closed_eyes-noHair.png")
 const BLINK_ALIGNMENT := preload("res://assets/sprites/ui/blink_overlays/alignment.tres")
 const LEAF_TEXTURE := preload("res://assets/sprites/ui/title_leaf.svg")
 const BLINK_CLOSE_TIME: float = 0.075
@@ -93,6 +93,8 @@ func _sync_heroine() -> void:
 	_karma = CheatManager.karmageisha_active
 	if _blink_overlay == null:
 		return
+	## These painted overlays contain only the closed eyes; hair was cropped out,
+	## so one PNG stays correct across all twelve recoloured covers.
 	_blink_overlay.texture = KARMA_BLINK if _karma else KITSUNE_BLINK
 	_layout_blink_overlay()
 
