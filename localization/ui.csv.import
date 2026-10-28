@@ -6,10 +6,10 @@ uid="uid://b1d85rvam0dr2"
 
 [deps]
 
-files=["res://localization/ui.en.translation", "res://localization/ui.fr.translation", "res://localization/ui.de.translation", "res://localization/ui.ja.translation", "res://localization/ui.es.translation", "res://localization/ui.it.translation"]
+files=["res://localization/ui.en.translation", "res://localization/ui.fr.translation", "res://localization/ui.de.translation", "res://localization/ui.ja.translation", "res://localization/ui.es.translation", "res://localization/ui.it.translation", "res://localization/ui.ko.translation", "res://localization/ui.zh_CN.translation", "res://localization/ui.hi.translation", "res://localization/ui.ar.translation", "res://localization/ui.ru.translation", "res://localization/ui.tr.translation", "res://localization/ui.pt.translation", "res://localization/ui.ur.translation", "res://localization/ui.bn.translation", "res://localization/ui.sw.translation", "res://localization/ui.vi.translation"]
 
 source_file="res://localization/ui.csv"
-dest_files=["res://localization/ui.en.translation", "res://localization/ui.fr.translation", "res://localization/ui.de.translation", "res://localization/ui.ja.translation", "res://localization/ui.es.translation", "res://localization/ui.it.translation"]
+dest_files=["res://localization/ui.en.translation", "res://localization/ui.fr.translation", "res://localization/ui.de.translation", "res://localization/ui.ja.translation", "res://localization/ui.es.translation", "res://localization/ui.it.translation", "res://localization/ui.ko.translation", "res://localization/ui.zh_CN.translation", "res://localization/ui.hi.translation", "res://localization/ui.ar.translation", "res://localization/ui.ru.translation", "res://localization/ui.tr.translation", "res://localization/ui.pt.translation", "res://localization/ui.ur.translation", "res://localization/ui.bn.translation", "res://localization/ui.sw.translation", "res://localization/ui.vi.translation"]
 
 [params]
 

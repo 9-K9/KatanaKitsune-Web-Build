@@ -8,15 +8,6 @@ signal back_pressed
 
 @export var font_size: int = 12
 
-const LANGUAGES := [
-	["en", "English"],
-	["fr", "Français"],
-	["de", "Deutsch"],
-	["ja", "日本語"],
-	["es", "Español"],
-	["it", "Italiano"],
-]
-
 var _toggles := {}
 var _display: Array[Control] = []
 var _title: Label
@@ -43,7 +34,7 @@ func _ready() -> void:
 	_language_picker = OptionButton.new()
 	_language_picker.custom_minimum_size.x = 170
 	_language_picker.add_theme_font_size_override("font_size", font_size)
-	for entry in LANGUAGES:
+	for entry in LanguageCatalog.LANGUAGES:
 		_language_picker.add_item(entry[1])
 		_language_picker.set_item_metadata(_language_picker.item_count - 1, entry[0])
 	_language_picker.item_selected.connect(_on_language_selected)
@@ -127,9 +118,9 @@ func _refresh_language_ui() -> void:
 	_language_label.text = tr("LANGUAGE")
 	_controls_button.text = tr("CONTROLS")
 	_back_button.text = tr("BACK")
-	var current := TranslationServer.get_locale().left(2)
+	var current := TranslationServer.get_locale()
 	for index in _language_picker.item_count:
-		if str(_language_picker.get_item_metadata(index)) == current:
+		if LanguageCatalog.locale_matches(str(_language_picker.get_item_metadata(index)), current):
 			_language_picker.select(index)
 			break
 

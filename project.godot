@@ -256,7 +256,7 @@ ScrollNext={
 
 [internationalization]
 
-locale/translations=PackedStringArray("res://localization/ui.en.translation", "res://localization/ui.fr.translation", "res://localization/ui.de.translation", "res://localization/ui.ja.translation", "res://localization/ui.es.translation", "res://localization/ui.it.translation")
+locale/translations=PackedStringArray("res://localization/ui.en.translation", "res://localization/ui.fr.translation", "res://localization/ui.de.translation", "res://localization/ui.ja.translation", "res://localization/ui.es.translation", "res://localization/ui.it.translation", "res://localization/ui.ko.translation", "res://localization/ui.zh_CN.translation", "res://localization/ui.hi.translation", "res://localization/ui.ar.translation", "res://localization/ui.ru.translation", "res://localization/ui.tr.translation", "res://localization/ui.pt.translation", "res://localization/ui.ur.translation", "res://localization/ui.bn.translation", "res://localization/ui.sw.translation", "res://localization/ui.vi.translation")
 locale/translations_pot_files=PackedStringArray("res://dialogue/testDialogue.dialogue")
 
 [rendering]

@@ -5,21 +5,12 @@ const SPLASH_SECONDS := 1.25
 
 @onready var splash: Control = $Splash
 @onready var language_panel: Control = $LanguagePanel
-@onready var language_list: VBoxContainer = $LanguagePanel/Panel/Margin/VBox/Languages
-
-const LANGUAGES := [
-	["en", "English"],
-	["fr", "Français"],
-	["de", "Deutsch"],
-	["ja", "日本語"],
-	["es", "Español"],
-	["it", "Italiano"],
-]
+@onready var language_list: VBoxContainer = $LanguagePanel/Panel/Margin/VBox/Languages/List
 
 
 func _ready() -> void:
 	language_panel.visible = false
-	for entry in LANGUAGES:
+	for entry in LanguageCatalog.LANGUAGES:
 		var button := Button.new()
 		button.text = entry[1]
 		button.custom_minimum_size = Vector2(250, 42)
