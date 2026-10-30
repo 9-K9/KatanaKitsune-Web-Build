@@ -13,6 +13,8 @@ var _display: Array[Control] = []
 var _title: Label
 var _language_label: Label
 var _language_picker: OptionButton
+var _audio_sliders: Dictionary = {}
+var _audio_values: Dictionary = {}
 var _controls_button: Button
 var _back_button: Button
 var controls: ControlsPanel
@@ -41,6 +43,33 @@ func _ready() -> void:
 	language_row.add_child(_language_picker)
 	add_child(language_row)
 	_display.append(language_row)
+
+	for bus in AudioManager.VOLUME_KEYS:
+		var row := HBoxContainer.new()
+		row.alignment = BoxContainer.ALIGNMENT_CENTER
+		row.add_theme_constant_override("separation", 6)
+		var label := Label.new()
+		label.text = _audio_name(bus)
+		label.custom_minimum_size.x = 105
+		label.add_theme_font_size_override("font_size", font_size)
+		row.add_child(label)
+		var slider := HSlider.new()
+		slider.custom_minimum_size.x = 110
+		slider.min_value = 0.0
+		slider.max_value = 100.0
+		slider.step = 5.0
+		slider.add_theme_icon_override("grabber", get_theme_icon("grabber", "HSlider"))
+		slider.value_changed.connect(_on_volume_changed.bind(bus))
+		row.add_child(slider)
+		var value_label := Label.new()
+		value_label.custom_minimum_size.x = 38
+		value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		value_label.add_theme_font_size_override("font_size", font_size)
+		row.add_child(value_label)
+		_audio_sliders[bus] = slider
+		_audio_values[bus] = value_label
+		add_child(row)
+		_display.append(row)
 
 	for id in RetroFX.EFFECTS:
 		var toggle := CheckButton.new()
@@ -80,6 +109,10 @@ func _sync() -> void:
 		var toggle: CheckButton = _toggles[id]
 		toggle.set_pressed_no_signal(RetroFX.is_enabled(id))
 		_update_label(id)
+	for bus in _audio_sliders:
+		var percent := roundi(AudioManager.volume(bus) * 100.0)
+		(_audio_sliders[bus] as HSlider).set_value_no_signal(percent)
+		(_audio_values[bus] as Label).text = "%d%%" % percent
 
 
 func _open_controls() -> void:
@@ -100,6 +133,21 @@ func _close_controls() -> void:
 func _on_toggled(enabled: bool, id: String) -> void:
 	RetroFX.set_enabled(id, enabled)
 	_update_label(id)
+
+
+func _on_volume_changed(value: float, bus: StringName) -> void:
+	AudioManager.set_volume(bus, value / 100.0)
+	(_audio_values[bus] as Label).text = "%d%%" % roundi(value)
+
+
+func _audio_name(bus: StringName) -> String:
+	match bus:
+		AudioManager.BUS_MUSIC:
+			return tr("MUSIC")
+		AudioManager.BUS_VOICE:
+			return tr("VOICES")
+		_:
+			return tr("SOUND EFFECTS")
 
 
 func _on_language_selected(index: int) -> void:

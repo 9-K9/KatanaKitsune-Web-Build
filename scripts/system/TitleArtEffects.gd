@@ -83,6 +83,7 @@ func _reschedule_blink() -> void:
 
 func _sync_cover_texture() -> void:
 	_last_texture = _cover.texture
+	_layout_blink_overlay()
 
 
 func _on_karmageisha_changed(_active: bool) -> void:
@@ -120,8 +121,18 @@ func _set_blink_amount(amount: float) -> void:
 func _layout_blink_overlay() -> void:
 	if _blink_overlay == null:
 		return
-	var reference_offset: Vector2 = (BLINK_ALIGNMENT.karma_geisha_offset
-		if _karma else BLINK_ALIGNMENT.kitsune_offset)
+	var reference_offset: Vector2
+	if _karma:
+		reference_offset = BLINK_ALIGNMENT.karma_geisha_offset
+	else:
+		## Character select previews a highlighted cover before committing that
+		## scheme to PowerState.chosen. Read the art actually on screen so Solar
+		## Yang and White Tiger receive their correction during the preview too.
+		var cover_file := _cover.texture.resource_path.get_file() if _cover.texture != null else ""
+		if cover_file in ["04_Metal_WhiteTiger.png", "09_Light_SolarYang.png"]:
+			reference_offset = BLINK_ALIGNMENT.white_fang_solar_yang_offset
+		else:
+			reference_offset = BLINK_ALIGNMENT.kitsune_offset
 	var scale_factor := maxf(size.x / 768.0, size.y / 432.0)
 	_blink_overlay.position = reference_offset * scale_factor
 

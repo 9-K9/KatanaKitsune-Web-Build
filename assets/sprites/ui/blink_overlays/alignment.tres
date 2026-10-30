@@ -6,3 +6,4 @@
 script = ExtResource("1")
 kitsune_offset = Vector2(0, 0)
 karma_geisha_offset = Vector2(0, 0)
+white_fang_solar_yang_offset = Vector2(-7, 0)

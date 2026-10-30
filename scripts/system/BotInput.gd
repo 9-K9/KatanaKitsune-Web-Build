@@ -29,7 +29,12 @@ const HEADING_HOLD: float = 0.3
 ## Standing still this long while trying to move counts as blocked...
 const BLOCKED_GRACE: float = 0.2
 ## ...and a blocked bot waits this long before it picks a new way.
-const BLOCKED_WAIT: float = 1.0
+const BLOCKED_WAIT: float = 0.25
+## Recovery is deliberately conservative: only a companion that has repeatedly
+## failed to make progress while more than a screen away may rejoin the leader.
+const RECOVERY_DISTANCE: float = 1200.0
+const RECOVERY_FAILURE_TIME: float = 7.5
+const RECOVERY_RADII: Array[float] = [150.0, 210.0, 280.0]
 
 var navigation := BotNavigation.new()
 var _body: WeakRef
@@ -50,6 +55,7 @@ var _heading := Vector2.ZERO
 var _heading_left: float = 0.0
 var _wait_left: float = 0.0
 var _blocked_for: float = 0.0
+var _failure_for: float = 0.0
 var _was_moving: bool = false
 var _last_position := Vector2.INF
 var _yielding: bool = false
@@ -119,6 +125,7 @@ func reset() -> void:
 	_heading_left = 0.0
 	_wait_left = 0.0
 	_blocked_for = 0.0
+	_failure_for = 0.0
 	_was_moving = false
 	_last_position = Vector2.INF
 	_yielding = false
@@ -287,6 +294,12 @@ func _follow(body: CharacterBody2D, goal: Vector2, running: bool,
 		_repath_left = 0.75
 		navigation.begin(body.global_position, goal, arrival_reach)
 	navigation.advance()
+	## Skip any near waypoint that the full collision shape can already reach.
+	## This smooths the grid path and prevents tiny doorway corrections from
+	## making a companion oscillate between adjacent cells.
+	while navigation.path.size() > 1 and \
+			navigation.safe_segment(body.global_position, navigation.path[1]):
+		navigation.path.remove_at(0)
 	while not navigation.path.is_empty() and \
 			BotNavigation.ground(navigation.path[0] - body.global_position).length() \
 			< stop_distance and (navigation.path.size() == 1 or
@@ -343,8 +356,20 @@ func _steer(body: CharacterBody2D, delta: float) -> void:
 	var expected: float = maxf(float(body.get("speed")), 1.0) * delta
 	if _was_moving and moved < expected * 0.2:
 		_blocked_for += delta
+		_failure_for += delta
 	else:
 		_blocked_for = 0.0
+		if moved >= expected * 0.5:
+			_failure_for = maxf(_failure_for - delta * 2.0, 0.0)
+	var anchor := _living(_anchor)
+	var following_leader: bool = anchor != null and _living(_target) == null \
+			and _dead(_fallen) == null
+	if following_leader and _distance(body, anchor) >= RECOVERY_DISTANCE \
+			and _failure_for >= RECOVERY_FAILURE_TIME:
+		if _recover_near_anchor(body, anchor):
+			return
+	elif not following_leader or (anchor != null and _distance(body, anchor) < RECOVERY_DISTANCE * 0.75):
+		_failure_for = 0.0
 	if _wait_left > 0.0:
 		_wait_left -= delta
 		_move = Vector2.ZERO
@@ -408,6 +433,35 @@ func _begin_wait() -> void:
 	_heading_left = 0.0
 	_move = Vector2.ZERO
 	_now.erase("Run")
+	## Rebuild the route after a collision instead of retrying the same stale
+	## waypoint. The short wait still gives a sliding door time to open.
+	navigation.reset()
+	_goal = Vector2.INF
+	_repath_left = 0.0
+
+
+## Finds clear floor beside the human leader and moves a hopelessly stranded
+## bot there. Every candidate is collision-checked with the bot's real shape;
+## this can never place one inside a wall, prop, closed door, or hazard.
+func _recover_near_anchor(body: CharacterBody2D, anchor: Node2D) -> bool:
+	for radius in RECOVERY_RADII:
+		for direction in BotNavigation.DIRECTIONS:
+			var ground_offset := Vector2(direction).normalized() * radius
+			var candidate := anchor.global_position + Vector2(ground_offset.x, ground_offset.y * 0.5)
+			if not navigation.safe_segment(candidate, candidate):
+				continue
+			body.global_position = candidate
+			body.velocity = Vector2.ZERO
+			_failure_for = 0.0
+			_blocked_for = 0.0
+			_wait_left = 0.0
+			_goal = Vector2.INF
+			navigation.reset()
+			_last_position = candidate
+			return true
+	## No safe landing spot: keep navigating and try again later.
+	_failure_for = RECOVERY_FAILURE_TIME * 0.75
+	return false
 
 
 ## Summed repulsion from every living party member inside SPACE_RADIUS, in

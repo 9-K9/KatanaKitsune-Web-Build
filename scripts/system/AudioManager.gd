@@ -8,6 +8,13 @@ const AUDIO_ROOT := "res://assets/audio/generated/final"
 const MUSIC_FADE := 0.8
 const AMBIENCE_FADE := 1.2
 const POSITIONAL_MAX_DISTANCE := 1300.0
+const SETTINGS_PATH := "user://audio.cfg"
+const BUS_MUSIC := &"Music"
+const BUS_VOICE := &"Voice"
+const BUS_SFX := &"SFX"
+const VOLUME_KEYS: Array[StringName] = [BUS_MUSIC, BUS_VOICE, BUS_SFX]
+## Preserve the mix users already hear until they choose a quieter setting.
+const DEFAULT_VOLUME := 1.0
 
 var _families: Dictionary = {}
 var _exact: Dictionary = {}
@@ -19,23 +26,46 @@ var _last_frames: Dictionary = {}
 var _step_cooldown: Dictionary = {}
 var _voice_cooldown: Dictionary = {}
 var _rng := RandomNumberGenerator.new()
+var _web_audio_unlocked: bool = false
+var _requested_music: Dictionary = {}
+var _requested_ambience: Dictionary = {}
 
 
 func _ready() -> void:
 	_rng.randomize()
+	_ensure_buses()
+	_load_volumes()
 	_index_library()
-	_music = _loop_player("Music")
-	_ambience = _loop_player("Ambience")
-	_status_loop = _loop_player("StatusLoop")
+	_music = _loop_player("Music", BUS_MUSIC)
+	_ambience = _loop_player("Ambience", BUS_MUSIC)
+	_status_loop = _loop_player("StatusLoop", BUS_SFX)
 	for i in 8:
 		var player := AudioStreamPlayer.new()
 		player.name = "UI_%02d" % i
+		player.bus = BUS_SFX
 		add_child(player)
 		_ui_players.append(player)
 	get_tree().node_added.connect(_on_node_added)
 	get_tree().scene_changed.connect(_on_scene_changed)
 	call_deferred("_wire_tree", get_tree().root)
 	call_deferred("_on_scene_changed")
+	if OS.get_name() != "Web":
+		_web_audio_unlocked = true
+
+
+func _input(event: InputEvent) -> void:
+	## Browsers suspend WebAudio until a real key/pointer gesture. Music is
+	## requested while the title scene is still loading, so retry the active
+	## loops just after the first gesture instead of leaving a silent session.
+	if _web_audio_unlocked or not (event is InputEventKey \
+			or event is InputEventMouseButton \
+			or event is InputEventJoypadButton \
+			or event is InputEventScreenTouch):
+		return
+	if not event.is_pressed():
+		return
+	_web_audio_unlocked = true
+	get_tree().create_timer(0.1, true, false, true).timeout.connect(_restart_web_audio)
 
 
 func _process(delta: float) -> void:
@@ -81,6 +111,7 @@ func play(event: String, volume_db: float = 0.0, pitch_variance: float = 0.04) -
 		return
 	var player := _free_ui_player()
 	player.stream = load(path)
+	player.bus = _bus_for(event)
 	player.volume_db = volume_db
 	player.pitch_scale = _rng.randf_range(1.0 - pitch_variance, 1.0 + pitch_variance)
 	player.play()
@@ -93,6 +124,7 @@ func play_at(event: String, position: Vector2, volume_db: float = 0.0,
 		return
 	var player := AudioStreamPlayer2D.new()
 	player.stream = load(path)
+	player.bus = _bus_for(event)
 	player.global_position = position
 	player.volume_db = volume_db
 	player.pitch_scale = _rng.randf_range(1.0 - pitch_variance, 1.0 + pitch_variance)
@@ -111,15 +143,31 @@ func play_for(event: String, source: Node, volume_db: float = 0.0) -> void:
 
 
 func play_music(event: String, volume_db: float = -5.0) -> void:
+	_requested_music = {"event": event, "volume_db": volume_db}
 	_crossfade_loop(_music, event, volume_db, MUSIC_FADE)
 
 
 func play_ambience(event: String, volume_db: float = -9.0) -> void:
+	_requested_ambience = {"event": event, "volume_db": volume_db}
 	_crossfade_loop(_ambience, event, volume_db, AMBIENCE_FADE)
 
 
 func stop_ambience() -> void:
+	_requested_ambience.clear()
 	_fade_out(_ambience, AMBIENCE_FADE)
+
+
+func _restart_web_audio() -> void:
+	_restart_requested_loop(_music, _requested_music)
+	_restart_requested_loop(_ambience, _requested_ambience)
+
+
+func _restart_requested_loop(player: AudioStreamPlayer, request: Dictionary) -> void:
+	if request.is_empty():
+		return
+	player.stop()
+	player.stream = null
+	_crossfade_loop(player, String(request["event"]), float(request["volume_db"]), 0.15)
 
 
 func _update_status_loop() -> void:
@@ -173,11 +221,64 @@ func _free_ui_player() -> AudioStreamPlayer:
 	return _ui_players[_rng.randi_range(0, _ui_players.size() - 1)]
 
 
-func _loop_player(player_name: String) -> AudioStreamPlayer:
+func _loop_player(player_name: String, bus: StringName) -> AudioStreamPlayer:
 	var player := AudioStreamPlayer.new()
 	player.name = player_name
+	player.bus = bus
 	add_child(player)
 	return player
+
+
+func _bus_for(event: String) -> StringName:
+	return BUS_VOICE if event.begins_with("vox_") else BUS_SFX
+
+
+## User-facing 0..1 volume values. Buses keep the preference independent from
+## each event's authored relative dB level and update sounds already playing.
+func volume(bus: StringName) -> float:
+	var index := AudioServer.get_bus_index(bus)
+	if index < 0:
+		return DEFAULT_VOLUME
+	return 0.0 if AudioServer.is_bus_mute(index) else db_to_linear(AudioServer.get_bus_volume_db(index))
+
+
+func set_volume(bus: StringName, value: float, save: bool = true) -> void:
+	if not bus in VOLUME_KEYS:
+		return
+	var index := AudioServer.get_bus_index(bus)
+	if index < 0:
+		return
+	var level := clampf(value, 0.0, 1.0)
+	AudioServer.set_bus_mute(index, level <= 0.001)
+	AudioServer.set_bus_volume_db(index, linear_to_db(maxf(level, 0.001)))
+	if save:
+		_save_volumes()
+
+
+func _ensure_buses() -> void:
+	for bus in VOLUME_KEYS:
+		if AudioServer.get_bus_index(bus) >= 0:
+			continue
+		AudioServer.add_bus()
+		var index := AudioServer.get_bus_count() - 1
+		AudioServer.set_bus_name(index, bus)
+		AudioServer.set_bus_send(index, &"Master")
+
+
+func _load_volumes() -> void:
+	var config := ConfigFile.new()
+	var loaded := config.load(SETTINGS_PATH) == OK
+	for bus in VOLUME_KEYS:
+		var value := float(config.get_value("volume", String(bus).to_lower(), DEFAULT_VOLUME)) \
+				if loaded else DEFAULT_VOLUME
+		set_volume(bus, value, false)
+
+
+func _save_volumes() -> void:
+	var config := ConfigFile.new()
+	for bus in VOLUME_KEYS:
+		config.set_value("volume", String(bus).to_lower(), volume(bus))
+	config.save(SETTINGS_PATH)
 
 
 func _crossfade_loop(player: AudioStreamPlayer, event: String, target_db: float,
@@ -229,8 +330,11 @@ func _on_node_added(node: Node) -> void:
 	call_deferred("_wire_tree", node)
 
 
-func _wire_tree(root: Node) -> void:
-	if not is_instance_valid(root):
+func _wire_tree(root: Variant) -> void:
+	# node_added is deferred so the node can finish entering the tree. On the
+	# slower web runtime it may also be freed before this call is delivered;
+	# keeping the argument untyped lets us reject that stale Object safely.
+	if not is_instance_valid(root) or not (root is Node):
 		return
 	if root is BaseButton:
 		var button := root as BaseButton

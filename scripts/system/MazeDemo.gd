@@ -306,6 +306,8 @@ var _party_base: Dictionary = {}
 var _themes_used: Array[int] = []
 ## Every player, in slot order. _player stays as player one for the HUD.
 var _players: Array[Node2D] = []
+var _camera_focus := Vector2.INF
+var _camera_zoom_target: float = 1.0
 var _rooms: Dictionary = {}
 var _bot_floors: Array[TileMapLayer] = []
 var _bot_floor_bounds: Array[Rect2] = []
@@ -2222,8 +2224,11 @@ func _fit_camera() -> void:
 		cam.name = "PartyCamera"
 		add_child(cam)
 		cam.position_smoothing_enabled = true
-		cam.position_smoothing_speed = 6.0
+		cam.position_smoothing_speed = 4.0
+		cam.process_callback = Camera2D.CAMERA2D_PROCESS_IDLE
 		cam.make_current()
+	_camera_focus = Vector2.INF
+	_camera_zoom_target = 1.0
 	## Any camera the player scene ships with would fight this one for the view.
 	for body in _players:
 		if is_instance_valid(body):
@@ -2250,7 +2255,17 @@ func _track_party(_delta: float) -> void:
 	var box := Rect2(alive[0].global_position, Vector2.ZERO)
 	for body in alive:
 		box = box.expand(body.global_position)
-	cam.global_position = box.get_center()
+	var centre := box.get_center()
+	if _camera_focus == Vector2.INF:
+		_camera_focus = centre
+		cam.global_position = centre
+		cam.reset_smoothing()
+	else:
+		## Exponential damping is frame-rate independent and filters the small
+		## centre changes caused by companions changing formation.
+		var focus_weight := 1.0 - exp(-_delta * 5.0)
+		_camera_focus = _camera_focus.lerp(centre, focus_weight)
+		cam.global_position = _camera_focus
 
 	## Zoom out only once the party is wider than the view, and never past the
 	## limit — a dungeon read at half size stops being readable.
@@ -2258,7 +2273,11 @@ func _track_party(_delta: float) -> void:
 	var needed: Vector2 = (box.size + Vector2(party_margin, party_margin)) / view
 	var out: float = maxf(maxf(needed.x, needed.y), 1.0)
 	var target: float = clampf(1.0 / out, camera_zoom_min, 1.0)
-	cam.zoom = cam.zoom.lerp(Vector2(target, target), clampf(_delta * 4.0, 0.0, 1.0))
+	## A small dead band stops one-pixel formation changes from pumping zoom.
+	if absf(target - _camera_zoom_target) > 0.01:
+		_camera_zoom_target = target
+	var zoom_weight := 1.0 - exp(-_delta * 3.0)
+	cam.zoom = cam.zoom.lerp(Vector2(_camera_zoom_target, _camera_zoom_target), zoom_weight)
 
 
 ## One whole room along each isometric axis, in pixels.
