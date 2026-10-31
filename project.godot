@@ -42,7 +42,11 @@ RetroFX="*res://scripts/system/RetroFX.gd"
 [dialogic]
 
 directories/dch_directory={}
-directories/dtl_directory={}
+directories/dtl_directory={
+"mummyKitsune_taunt": "res://dialogue/enemies/mummyKitsune_taunt.dtl",
+"timeline": "res://dialogue/_test/timeline.dtl",
+"undeadRonin_taunt": "res://dialogue/enemies/undeadRonin_taunt.dtl"
+}
 layout/style_list=[]
 layout/default_style=""
 glossary/default_case_sensitive=true
