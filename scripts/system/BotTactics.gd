@@ -5,13 +5,13 @@ extends RefCounted
 ## Roster. BotInput still does the walking and the swinging; this only answers
 ## "is this monster mine to fight?" and "should I be sneaking right now?".
 ##
-##   AGGRESSIVE  any monster it can see near the party.
-##   DEFENSIVE   monsters that just hurt a human or the bot itself, or that a
-##               human just struck.
+##   AGGRESSIVE  hunts the nearest living monster anywhere on the floor, keeps
+##               fighting it until it dies, then finds the next one.
+##   DEFENSIVE   monsters that just hurt a human or that a human just struck.
 ##   STEALTH     while its human sneaks, it sneaks too and only strikes
 ##               monsters that have not noticed anyone. Otherwise DEFENSIVE.
-##   PASSIVE     only monsters that just hurt the bot or a human; stays close
-##               and keeps the blade sheathed until it is needed.
+##   PASSIVE     prioritises revives and healing dances; only fights a monster
+##               that directly hurt it.
 
 ## How long a blow is remembered when deciding who started it.
 const HURT_WINDOW_MS: int = 4000
@@ -43,9 +43,11 @@ static func provokes(mode: int, body: Node, anchor: Node, enemy: Node) -> bool:
 	if mode == Roster.BotMode.AGGRESSIVE:
 		return true
 	if mode == Roster.BotMode.PASSIVE:
-		return _hurt_by(body, enemy) or _hurt_any_human(body, enemy)
-	if mode == Roster.BotMode.STEALTH and sneaking_with(mode, body, anchor):
-		return is_unaware(enemy) and _can_strike_unseen(body)
+		return _hurt_by(body, enemy)
+	if mode == Roster.BotMode.STEALTH:
+		if sneaking_with(mode, body, anchor):
+			return is_unaware(enemy) and _can_strike_unseen(body)
+		return _hurt_by(body, enemy) or _defensive(body, enemy)
 	return _defensive(body, enemy)
 
 
@@ -76,7 +78,7 @@ static func follow_reach(mode: int, default_reach: float) -> float:
 
 
 static func _defensive(body: Node, enemy: Node) -> bool:
-	if _hurt_by(body, enemy) or _hurt_any_human(body, enemy):
+	if _hurt_any_human(body, enemy):
 		return true
 	if enemy.has_method("last_hit_slot"):
 		var slot: int = enemy.last_hit_slot(HURT_WINDOW_MS)

@@ -224,9 +224,20 @@ func _poll() -> void:
 			_target = LOAD_SHARE
 			_swap(ResourceLoader.load_threaded_get(_path) as PackedScene)
 		ResourceLoader.THREAD_LOAD_FAILED, ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
-			push_error("SceneLoader: failed to load %s" % _path)
-			_loading = false
-			finish()
+			## Exported builds can reject a deep dependency graph on the worker
+			## even though the same packed scene is valid on the main thread. This
+			## is especially visible in the dedicated-server export, where visual
+			## resources are converted to placeholders. Fall back once instead of
+			## leaving every peer stranded in the lobby.
+			var fallback := ResourceLoader.load(_path) as PackedScene
+			if fallback != null:
+				push_warning("SceneLoader: threaded load failed for %s; using synchronous fallback" % _path)
+				_target = LOAD_SHARE
+				_swap(fallback)
+			else:
+				push_error("SceneLoader: failed to load %s" % _path)
+				_loading = false
+				finish()
 
 
 func _swap(packed: PackedScene) -> void:

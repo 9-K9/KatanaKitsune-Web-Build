@@ -40,8 +40,8 @@ const PROP_DIR := WorldObjects.SCENE_DIR
 
 
 static func definition(which: Id) -> ExteriorBiome:
-	## Itch.io Web Edition ships only the Sakura environment.
-	return load("res://resources/biomes/sakura.tres") as ExteriorBiome
+	var names := ["sakura", "desert", "snow"]
+	return load("res://resources/biomes/%s.tres" % names[which]) as ExteriorBiome
 
 
 func unavailable_reason() -> String:

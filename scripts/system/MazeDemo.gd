@@ -349,8 +349,22 @@ var _weather: OutdoorWeather = null
 ## Where the party arrives and the one room left free of monsters.
 var _start_cell := Vector2i.ZERO
 
+## Companion recovery: a door traversal gets a short grace period for normal
+## pathfinding, while the manual CALL AI action must be deliberately held.
+const AI_DOOR_RESCUE_DELAY: float = 3.0
+const AI_RESCUE_HOLD_TIME: float = 1.0
+## The downloadable demo keeps the three complete ten-animation enemies. This
+## leaves every biome, character, language, and audio system intact while
+## keeping the itch.io HTML5 archive below its 200 MB upload ceiling.
+const DEMO_ENEMY_ROSTER_SIZE: int = 3
+var _door_rescue_serial: Dictionary[int, int] = {}
+var _manual_rescue_held: Dictionary[int, float] = {}
+var _manual_rescue_latched: Dictionary[int, bool] = {}
+
 
 func _ready() -> void:
+	if OS.has_feature("demo") and enemy_scene_paths.size() > DEMO_ENEMY_ROSTER_SIZE:
+		enemy_scene_paths.resize(DEMO_ENEMY_ROSTER_SIZE)
 	Roster.clear_party_control()
 	Roster.party_control_changed.connect(_on_party_control_changed)
 	var pending_floor := NetworkManager.consume_pending_floor()
@@ -1555,6 +1569,7 @@ func _add_door(layer: TileMapLayer, cell: Vector2i, dir: int) -> void:
 	## A tile's art is centred on its cell minus texture_origin.
 	door.sprite_offset = -Vector2(ref.texture_origin) - sort
 	door.doorway = doorway
+	door.human_crossed.connect(_on_human_crossed_door)
 	layer.add_child(door)
 	door.position = layer.map_to_local(cell) + sort
 
@@ -1944,6 +1959,7 @@ func bot_navigation_contains(point: Vector2) -> bool:
 
 func _physics_process(delta: float) -> void:
 	_enforce_safe_room()
+	_update_ai_rescue_shortcut(delta)
 	if bot_controls_active():
 		refresh_party_control()
 	if not get_tree().paused and not SceneLoader.is_active() \
@@ -1962,6 +1978,77 @@ func _physics_process(delta: float) -> void:
 				var size: Vector2 = get_viewport_rect().size / camera.zoom
 				views.append(Rect2(camera.get_screen_center_position() - size * 0.5, size))
 			_weather.update_weather(delta, views)
+
+
+## A player crossing a panel gives companions three seconds to follow through
+## under their own power. A later crossing by that same player restarts the
+## grace period rather than stacking several teleports.
+func _on_human_crossed_door(player: CharacterBody2D) -> void:
+	if NetworkManager.is_client or not is_instance_valid(player):
+		return
+	var key := player.get_instance_id()
+	var serial: int = _door_rescue_serial.get(key, 0) + 1
+	_door_rescue_serial[key] = serial
+	await get_tree().create_timer(AI_DOOR_RESCUE_DELAY, false).timeout
+	if not is_inside_tree() or _door_rescue_serial.get(key, 0) != serial \
+			or not is_instance_valid(player) or player.get("is_dead") == true:
+		return
+	_rescue_ai_near(player)
+
+
+## H / RB-R1 is a held safety action. Each local or network human owns their
+## own timer, and must release before it can fire again.
+func _update_ai_rescue_shortcut(delta: float) -> void:
+	if not bot_controls_active() or NetworkManager.is_client:
+		return
+	var present: Dictionary[int, bool] = {}
+	for body in Roster.bodies(get_tree()):
+		var slot: int = int(body.get("slot"))
+		if Roster.is_ai_controlled(slot) or body.get("is_dead") == true:
+			continue
+		var input: Variant = body.get("input")
+		if not (input is PlayerInput):
+			continue
+		var key := body.get_instance_id()
+		present[key] = true
+		if input.pressed("RescueAI"):
+			if _manual_rescue_latched.get(key, false):
+				continue
+			var held: float = _manual_rescue_held.get(key, 0.0) + delta
+			_manual_rescue_held[key] = held
+			if held >= AI_RESCUE_HOLD_TIME:
+				_manual_rescue_latched[key] = true
+				_rescue_ai_near(body)
+		else:
+			_manual_rescue_held.erase(key)
+			_manual_rescue_latched.erase(key)
+	for key in _manual_rescue_held.keys():
+		if not present.has(key):
+			_manual_rescue_held.erase(key)
+			_manual_rescue_latched.erase(key)
+
+
+## Shared hard recovery for door and manual calls. Landing points are reserved
+## up front, then each bot performs its own fade around the move.
+func _rescue_ai_near(anchor: CharacterBody2D) -> int:
+	if not is_instance_valid(anchor) or anchor.get("is_dead") == true:
+		return 0
+	var reserved: Array[Vector2] = []
+	var rescued: int = 0
+	for body in Roster.bodies(get_tree()):
+		var slot: int = int(body.get("slot"))
+		if not Roster.is_ai_controlled(slot) or body.get("is_dead") == true:
+			continue
+		var bot := body.get("input") as BotInput
+		if bot == null:
+			continue
+		var landing := bot.rescue_position_near(anchor, reserved)
+		if landing == Vector2.INF:
+			continue
+		reserved.append(landing)
+		if bot.rescue_to(landing):
+			rescued += 1
+	return rescued
 
 
 ## True for the authored floor diamond of the start room. EnemyBase uses this

@@ -34,7 +34,9 @@ const BLOCKED_WAIT: float = 0.25
 ## failed to make progress while more than a screen away may rejoin the leader.
 const RECOVERY_DISTANCE: float = 1200.0
 const RECOVERY_FAILURE_TIME: float = 7.5
-const RECOVERY_RADII: Array[float] = [150.0, 210.0, 280.0]
+const RECOVERY_RADII: Array[float] = [150.0, 210.0, 280.0, 350.0]
+const RESCUE_FADE_OUT: float = 0.16
+const RESCUE_FADE_IN: float = 0.24
 
 var navigation := BotNavigation.new()
 var _body: WeakRef
@@ -61,6 +63,7 @@ var _last_position := Vector2.INF
 var _yielding: bool = false
 var _yield_heading := Vector2.ZERO
 var _edge_frames: Dictionary[String, int] = {}
+var _rescuing: bool = false
 
 
 func _init() -> void:
@@ -143,6 +146,13 @@ func update(delta: float) -> void:
 	if not is_instance_valid(body) or body.get("is_dead") == true:
 		reset()
 		return
+	if _rescuing:
+		_was = _now
+		_now = {}
+		_move = Vector2.ZERO
+		_aim = Vector2.ZERO
+		body.velocity = Vector2.ZERO
+		return
 	var world := body.get_parent()
 	if body.get_tree().paused or (world.has_method("bot_controls_active") \
 			and not world.bot_controls_active()):
@@ -167,16 +177,17 @@ func _decide(body: CharacterBody2D) -> void:
 	var anchor := _living(_anchor)
 	if anchor == null and fallen == null:
 		return
+	var mode := BotTactics.mode_for(body)
 	var target := _living(_target)
-	if target != null and anchor != null and _distance(target, anchor) > LEASH:
+	if mode != Roster.BotMode.AGGRESSIVE and target != null and anchor != null \
+			and _distance(target, anchor) > LEASH:
 		target = null
 		_target = null
 	if body.get("actionBlockInput") == true:
 		return
 	var state := _state(body)
-	var mode := BotTactics.mode_for(body)
 	var sneaking := BotTactics.sneaking_with(mode, body, anchor)
-	if target != null and fallen == null:
+	if target != null and (fallen == null or mode != Roster.BotMode.PASSIVE):
 		var target_offset := BotNavigation.ground(target.global_position - body.global_position)
 		var target_dist: float = target_offset.length()
 		var immediate_threat: bool = target_dist <= ATTACK_REACH and _state(target) in THREAT_STATES
@@ -274,6 +285,16 @@ func _decide(body: CharacterBody2D) -> void:
 			_now["Stealth"] = true
 			_draw_left = 0.5
 			return
+	## Passive companions turn Defend into the healing dance only from a settled,
+	## unarmed idle. Their next think tick sees the dance state and cannot spam
+	## another edge while the animation is running.
+	if mode == Roster.BotMode.PASSIVE and not drawn and state == &"idle" \
+			and body.has_method("party_needs_dance_heal") \
+			and body.party_needs_dance_heal() and body.can_dance_heal():
+		navigation.reset()
+		_goal = Vector2.INF
+		_now["Defend"] = true
+		return
 	if anchor != null:
 		var distance: float = _distance(body, anchor)
 		if distance <= BotTactics.follow_reach(mode, FOLLOW_REACH):
@@ -444,24 +465,84 @@ func _begin_wait() -> void:
 ## bot there. Every candidate is collision-checked with the bot's real shape;
 ## this can never place one inside a wall, prop, closed door, or hazard.
 func _recover_near_anchor(body: CharacterBody2D, anchor: Node2D) -> bool:
-	for radius in RECOVERY_RADII:
-		for direction in BotNavigation.DIRECTIONS:
-			var ground_offset := Vector2(direction).normalized() * radius
-			var candidate := anchor.global_position + Vector2(ground_offset.x, ground_offset.y * 0.5)
-			if not navigation.safe_segment(candidate, candidate):
-				continue
-			body.global_position = candidate
-			body.velocity = Vector2.ZERO
-			_failure_for = 0.0
-			_blocked_for = 0.0
-			_wait_left = 0.0
-			_goal = Vector2.INF
-			navigation.reset()
-			_last_position = candidate
-			return true
+	var candidate := rescue_position_near(anchor)
+	if candidate != Vector2.INF:
+		return rescue_to(candidate)
 	## No safe landing spot: keep navigating and try again later.
 	_failure_for = RECOVERY_FAILURE_TIME * 0.75
 	return false
+
+
+## Finds a free landing point around `anchor` using this bot's actual body
+## shape, the authored floor bounds and the same hazard margin as pathfinding.
+## `reserved` prevents several companions choosing the same clear point before
+## their fade-out has finished.
+func rescue_position_near(anchor: Node2D,
+		reserved: Array[Vector2] = []) -> Vector2:
+	var body := _body.get_ref() as CharacterBody2D if _body != null else null
+	if not is_instance_valid(anchor) or not is_instance_valid(body):
+		return Vector2.INF
+	for radius in RECOVERY_RADII:
+		for direction in BotNavigation.DIRECTIONS:
+			var ground_offset := Vector2(direction).normalized() * radius
+			var candidate := anchor.global_position \
+					+ Vector2(ground_offset.x, ground_offset.y * 0.5)
+			var claimed := false
+			for other in reserved:
+				if BotNavigation.ground(candidate - other).length() < SPACE_RADIUS:
+					claimed = true
+					break
+			if not claimed:
+				for other in Roster.bodies(body.get_tree()):
+					if other == body:
+						continue
+					if BotNavigation.ground(candidate - other.global_position).length() \
+							< SPACE_RADIUS:
+						claimed = true
+						break
+			if claimed or not navigation.safe_segment(candidate, candidate):
+				continue
+			return candidate
+	return Vector2.INF
+
+
+## Fades the companion away, performs the already collision-checked move, then
+## fades it back in. Both door recovery and the manual call use this path.
+func rescue_to(candidate: Vector2) -> bool:
+	var body := _body.get_ref() as CharacterBody2D if _body != null else null
+	if _rescuing or not is_instance_valid(body) or candidate == Vector2.INF:
+		return false
+	_rescuing = true
+	body.velocity = Vector2.ZERO
+	_move = Vector2.ZERO
+	_now.clear()
+	var sprite := body.find_child("AnimatedSprite2D", true, false) as CanvasItem
+	if sprite == null:
+		_finish_rescue_move(body, candidate)
+		_rescuing = false
+		return true
+	var original_alpha: float = sprite.modulate.a
+	var fade := body.create_tween()
+	fade.tween_property(sprite, "modulate:a", 0.0, RESCUE_FADE_OUT) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	fade.tween_callback(_finish_rescue_move.bind(body, candidate))
+	fade.tween_property(sprite, "modulate:a", original_alpha, RESCUE_FADE_IN) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	fade.tween_callback(func() -> void: _rescuing = false)
+	return true
+
+
+func _finish_rescue_move(body: CharacterBody2D, candidate: Vector2) -> void:
+	if not is_instance_valid(body):
+		return
+	body.global_position = candidate
+	body.velocity = Vector2.ZERO
+	_failure_for = 0.0
+	_blocked_for = 0.0
+	_wait_left = 0.0
+	_goal = Vector2.INF
+	navigation.reset()
+	_last_position = candidate
 
 
 ## Summed repulsion from every living party member inside SPACE_RADIUS, in
@@ -520,10 +601,26 @@ func _choose_anchor(body: CharacterBody2D) -> void:
 func _choose_target(body: CharacterBody2D) -> void:
 	var anchor := _living(_anchor)
 	var best: Node2D = null
-	var distance: float = NOTICE_REACH
 	var mode := BotTactics.mode_for(body)
 	var previous := _living(_target)
 	var now := Time.get_ticks_msec()
+	## Aggressive is a genuine hunter: it keeps one living target even beyond the
+	## party leash and, after that target dies, searches the entire floor.
+	if mode == Roster.BotMode.AGGRESSIVE:
+		if previous != null:
+			return
+		var hunting_distance: float = INF
+		for candidate in body.get_tree().get_nodes_in_group("enemy"):
+			if not (candidate is CharacterBody2D) or candidate.get("is_dead") == true \
+					or candidate.is_queued_for_deletion():
+				continue
+			var reach: float = _distance(body, candidate)
+			if reach < hunting_distance:
+				best = candidate
+				hunting_distance = reach
+		_target = weakref(best) if best != null else null
+		return
+	var distance: float = NOTICE_REACH
 	## A stalk is abandoned the moment the monster notices; any other fight is
 	## seen through for a few seconds after the last provocation.
 	var stick: bool = now < _engaged_until_ms \

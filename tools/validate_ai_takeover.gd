@@ -252,8 +252,8 @@ func _live_checks() -> void:
 	_world.add_child(enemy)
 	borrowed.last_hurt_by = weakref(enemy)
 	borrowed.last_hurt_at_ms = Time.get_ticks_msec()
-	_check(BotTactics.provokes(Roster.BotMode.PASSIVE, follower, borrowed, enemy),
-			"passive follower protects the temporarily human-controlled teammate")
+	_check(not BotTactics.provokes(Roster.BotMode.PASSIVE, follower, borrowed, enemy),
+			"passive follower stays focused on healing instead of joining another player's fight")
 	borrowed.last_hurt_by = null
 	enemy.queue_free()
 	var old_input: PlayerInput = borrowed.input

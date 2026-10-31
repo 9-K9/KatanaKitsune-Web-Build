@@ -27,6 +27,7 @@ const UNASSIGNED: int = -99
 const REBINDABLE: PackedStringArray = [
 	"Up", "Down", "Left", "Right",
 	"Attack", "Katana", "Defend", "Dodge", "Action", "Jump", "Run", "Stealth",
+	"RescueAI",
 	"ScrollUse", "ScrollPrevious", "ScrollNext",
 	"Scroll1", "Scroll2", "Scroll3", "Scroll4", "Scroll5", "Scroll6",
 	"Pause",
@@ -36,6 +37,7 @@ const LABELS := {
 	"Up": "MOVE UP", "Down": "MOVE DOWN", "Left": "MOVE LEFT", "Right": "MOVE RIGHT",
 	"Attack": "ATTACK", "Katana": "KATANA", "Defend": "DEFEND", "Dodge": "DODGE",
 	"Action": "ACTION", "Jump": "JUMP", "Run": "RUN", "Stealth": "STEALTH",
+	"RescueAI": "CALL AI",
 	"ScrollUse": "USE SCROLL", "ScrollPrevious": "PREV SCROLL", "ScrollNext": "NEXT SCROLL",
 	"Scroll1": "SCROLL 1", "Scroll2": "SCROLL 2", "Scroll3": "SCROLL 3",
 	"Scroll4": "SCROLL 4", "Scroll5": "SCROLL 5", "Scroll6": "SCROLL 6",

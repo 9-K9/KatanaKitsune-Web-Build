@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="LevelTheme" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/system/LevelTheme.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = 3
+biome = 1
+display_name = "Desert Ruins"
+description = "Sun-baked sandstone halls half buried in the dunes. Scorpions in the shade and sandstorms off the waste."
+icon_path = "res://assets/pixellab/level_icons/desert_ruins.png"
+walls = Array[String](["rusticBrickWall3", "rusticBrickWall4", "wood&BrickWall", "rusticBrickWall"])
+small_props = Array[String]([])
+weather = Array[int]([0, 4])
+outdoor_animals = Array[String](["scorpion", "scorpion", "fennec_fox", "snake", "crow", "rat"])
+indoor_animals = Array[String](["rat", "scorpion"])
+pond_animals = Array[String]([])
+animal_density = 0.6
+ornament_chance = 0.1
+moonlight = Color(0.85, 0.72, 0.53, 1)

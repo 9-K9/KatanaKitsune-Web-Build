@@ -33,10 +33,15 @@ func _run() -> void:
 			_check(sprite.animation == "%s_%s" % [clip, facing]
 					and sprite.speed_scale == 0.5, clip + " runs at half speed: " + facing)
 		var normal_duration := dance.clip_length("seductiveDance")
+		body.stamina = body.max_stamina
+		body.sneak = body.max_sneak
 		dance.on_enter()
 		_check(sprite.speed_scale == 0.5
 				and is_equal_approx(dance.action_timer.wait_time, normal_duration * 2),
 				"dance playback and state duration are doubled: " + facing)
+		_check(is_equal_approx(body.stamina, body.max_stamina * 0.75)
+				and is_equal_approx(body.sneak, body.max_sneak * 0.75),
+				"dance spends one quarter of both resources: " + facing)
 		dance.on_exit()
 		_check(sprite.speed_scale == 1.0, "dance restores playback on exit")
 		idle.stateAnimation("walk")

@@ -64,6 +64,7 @@ const ISO_Y_SCALE: float = 0.5
 var health: float = 0.0
 var is_dead: bool = false
 var network_id: int = -1
+var _loot_dropped: bool = false
 
 @onready var health_bar: ProgressBar = get_node_or_null("HealthBar")
 @onready var state_machine: FiniteStateMachine = get_node_or_null("FiniteStateMachine")
@@ -335,6 +336,10 @@ func _position_hit_box() -> void:
 ## The player's body. Resolved lazily because the monster is spawned from code
 ## and may enter the tree before the player does.
 func player() -> CharacterBody2D:
+	var forced := _forced_player()
+	if forced != null:
+		_player = forced
+		return forced
 	## The nearest living player, re-resolved each time rather than cached.
 	##
 	## It used to latch onto the first body in the group and keep it forever,
@@ -402,6 +407,10 @@ var _last_seen_ms: int = -100000
 var _sight_checked_ms: int = -100000
 var _sight_cached: bool = false
 var _sight_phase: int = -1
+## A loud dance overrides normal sight and stealth long enough for the monster
+## to pursue the dancer specifically.
+var _alert_target: WeakRef = null
+var _alert_target_until_ms: int = 0
 ## Where she was standing when last seen, so a monster can press on to it.
 var last_known: Vector2 = Vector2.ZERO
 
@@ -416,6 +425,13 @@ func sees_player() -> bool:
 		_sight_phase = phase
 		_sight_checked_ms = -100000
 	var now: int = Time.get_ticks_msec()
+	var forced := _forced_player()
+	if forced != null:
+		_sight_checked_ms = now
+		_sight_cached = true
+		_last_seen_ms = now
+		last_known = forced.global_position
+		return true
 	if now - _sight_checked_ms < 120:
 		return _sight_cached
 	_sight_checked_ms = now
@@ -426,6 +442,38 @@ func sees_player() -> bool:
 		if target != null:
 			last_known = target.global_position
 	return _sight_cached
+
+
+func _forced_player() -> CharacterBody2D:
+	if Time.get_ticks_msec() >= _alert_target_until_ms:
+		_alert_target = null
+		return null
+	var target := _alert_target.get_ref() as CharacterBody2D if _alert_target != null else null
+	if not is_instance_valid(target) or target.is_queued_for_deletion() \
+			or target.get("is_dead") == true:
+		_alert_target = null
+		return null
+	return target
+
+
+## Called by a completed-or-interrupted dance at its start. Waking dormant
+## monsters here is important: a sleeping patrol still heard the noise.
+func alert_to_player(target: CharacterBody2D, seconds: float = 8.0) -> void:
+	if is_dead or not is_instance_valid(target) or target.get("is_dead") == true:
+		return
+	set_dormant(false)
+	_alert_target = weakref(target)
+	_alert_target_until_ms = Time.get_ticks_msec() + int(maxf(seconds, 0.0) * 1000.0)
+	_last_seen_ms = Time.get_ticks_msec()
+	_sight_checked_ms = _last_seen_ms
+	_sight_cached = true
+	last_known = target.global_position
+	if not is_instance_valid(state_machine) or state_machine.current_state == null:
+		return
+	if state_machine.current_state.name in [&"idle", &"alert", &"taunt"]:
+		var next := "draw" if traits.get("duellist", false) and not blade_drawn \
+				and state_machine.has_node("draw") else "walk"
+		_change_state(next)
 
 
 func _look_for_player() -> bool:
@@ -1113,6 +1161,10 @@ func _unpetrify(settle: bool = true) -> void:
 ## Called on every monster when a player reads the Invisibility scroll: whatever
 ## it was hunting, it has lost, and drops back to wandering.
 func forget_player(_who: Node = null) -> void:
+	var forced := _forced_player()
+	if _who == null or forced == _who:
+		_alert_target = null
+		_alert_target_until_ms = 0
 	_last_seen_ms = -100000
 	_sight_checked_ms = -100000
 	_sight_cached = false
@@ -1127,6 +1179,7 @@ func begin_death() -> void:
 	is_dead = true
 	AudioManager.enemy_event(self, "death")
 	AudioManager.play_for("sfx_enemy_defeat", self, -4.0)
+	_drop_loot_once()
 	died.emit()
 	## Scored here rather than in the death state, so it lands the instant the
 	## monster is out of the fight — the streak window has to open now, not when
@@ -1152,6 +1205,7 @@ func network_death() -> void:
 	if is_dead:
 		return
 	is_dead = true
+	_drop_loot_once()
 	velocity = Vector2.ZERO
 	set_deferred("collision_layer", 0)
 	set_deferred("collision_mask", 0)
@@ -1168,6 +1222,20 @@ func _player_in_slot(slot: int) -> Node:
 		if body.get("slot") == slot:
 			return body
 	return null
+
+
+## Guaranteed once even if the reliable loot event and the death snapshot
+## reach an online client in the opposite order.
+func _drop_loot_once() -> void:
+	if _loot_dropped:
+		return
+	_loot_dropped = true
+	LootDrops.enemy(self)
+	NetworkManager.announce_enemy_drop(self)
+
+
+func network_enemy_drop() -> void:
+	_drop_loot_once()
 
 
 ## Called by the death state once the animation has played out.

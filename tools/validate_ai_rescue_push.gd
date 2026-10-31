@@ -166,9 +166,10 @@ func _priority_checks() -> void:
 		bot.input._target = weakref(enemy)
 		bot.input._think_left = 100.0
 		bot.input.update(1.0 / 60.0)
-		_check(bot.input.vector().x > 0 and not bot.input.pressed("Attack")
-				and not bot.input.pressed("Defend"),
-				"rescue overrides even an immediate combat threat in mode %d" % mode)
+		var prioritises_rescue: bool = bot.input.vector().x > 0 \
+				and not bot.input.pressed("Attack") and not bot.input.pressed("Defend")
+		_check(prioritises_rescue == (mode == Roster.BotMode.PASSIVE),
+				"only Passive overrides an immediate combat threat to rescue in mode %d" % mode)
 		bot.input._think_left = 0.0
 		var fallen_bot := _probe(2, Vector2(100, 0), true)
 		Roster.add_bot()
@@ -245,6 +246,45 @@ func _door_checks() -> void:
 	_check(bot.stealthed and bot.position.x > door.position.x
 			and BotNavigation.ground(bot.position - human.position).length() <= BotInput.REVIVE_DISTANCE,
 			"bot opens and walks through the door to rescue a human")
+	_world.queue_free()
+	await _frames(2)
+
+
+func _hard_rescue_checks() -> void:
+	_setup()
+	var human := _probe(0, Vector2(700, 0))
+	var bot := _probe(1, Vector2.ZERO)
+	bot.input = Roster.input_for(1)
+	bot.input.bind_body(bot)
+	var visual := AnimatedSprite2D.new()
+	visual.name = "AnimatedSprite2D"
+	bot.add_child(visual)
+	await _frames(2)
+	var reserved: Array[Vector2] = []
+	var landing := bot.input.rescue_position_near(human, reserved)
+	_check(landing != Vector2.INF and bot.input.navigation.safe_segment(landing, landing),
+			"hard rescue chooses floor that clears the bot's real collision shape")
+	_check(bot.input.rescue_to(landing), "hard rescue accepts a safe landing")
+	await _frames(30)
+	_check(bot.position.is_equal_approx(landing), "hard rescue moves beside the human")
+	_check(is_equal_approx(visual.modulate.a, 1.0), "hard rescue fades the sprite back in")
+	_check(not bot.test_move(bot.global_transform, Vector2.ZERO, null, 0.5, true),
+			"hard rescue does not finish overlapping another collision")
+
+	var door := SlidingDoor.new()
+	door.position = Vector2(1100, 0)
+	door.slope = 0.0
+	door.doorway = PackedVector2Array([Vector2(-60, -16), Vector2(60, -16),
+			Vector2(60, 16), Vector2(-60, 16)])
+	_world.add_child(door)
+	await _frames(2)
+	var crossings := [0]
+	door.human_crossed.connect(func(_player): crossings[0] += 1)
+	human.position = door.position + Vector2(0, -60)
+	door._track_human_crossings()
+	human.position = door.position + Vector2(0, 60)
+	door._track_human_crossings()
+	_check(crossings[0] == 1, "door emits one human crossing for the delayed rescue trigger")
 	_world.queue_free()
 	await _frames(2)
 
@@ -377,13 +417,16 @@ func _maze_checks() -> void:
 
 
 func _run() -> void:
-	if "--maze-only" in OS.get_cmdline_user_args():
+	if "--hard-only" in OS.get_cmdline_user_args():
+		await _hard_rescue_checks()
+	elif "--maze-only" in OS.get_cmdline_user_args():
 		await _maze_checks()
 	else:
 		await _navigation_checks()
 		await _priority_checks()
 		await _push_checks()
 		await _door_checks()
+		await _hard_rescue_checks()
 		if "--movement-only" not in OS.get_cmdline_user_args():
 			await _real_revive_checks()
 	Roster.clear()

@@ -27,6 +27,12 @@ var slot: int = 0
 ## Share of their health a revived player comes back with.
 @export var revive_health: float = 0.5
 
+## The dance is a party heal with a deliberate four-use budget. Both resources
+## are charged from their maximum values, so upgrades do not make the fourth
+## attempt fail by a fraction and day/night cost modifiers do not distort it.
+@export_range(0.0, 1.0, 0.01) var dance_resource_fraction: float = 0.25
+@export_range(0.0, 1.0, 0.01) var dance_heal_fraction: float = 0.10
+
 @onready var timerTimeOut : bool = false
 @onready var actionBlockInput : bool = false
 
@@ -182,6 +188,72 @@ func _on_death() -> void:
 func revive(fraction: float = 0.5) -> void:
 	super.revive(fraction)
 	_refresh_party_control()
+
+
+## A dance must be paid for up front. If the dancer is interrupted the spent
+## stamina and stealth stay spent, but the party receives no heal.
+func can_dance_heal() -> bool:
+	if is_dead or max_stamina <= 0.0 or max_sneak <= 0.0:
+		return false
+	return stamina + 0.001 >= max_stamina * dance_resource_fraction \
+			and sneak + 0.001 >= max_sneak * dance_resource_fraction
+
+
+func begin_dance_heal() -> bool:
+	if not can_dance_heal():
+		return false
+	stamina = maxf(stamina - max_stamina * dance_resource_fraction, 0.0)
+	sneak = maxf(sneak - max_sneak * dance_resource_fraction, 0.0)
+	_stamina_rested_for = 0.0
+	_sneak_used_this_frame = true
+	return true
+
+
+## The animation itself is exertion, not rest. Called for every physics frame
+## of a live dance so neither bar refills before its completion or interruption.
+func hold_dance_resources() -> void:
+	_stamina_rested_for = 0.0
+	_sneak_used_this_frame = true
+
+
+## Used by Passive AI so it does not dance at full party health.
+func party_needs_dance_heal() -> bool:
+	if not is_inside_tree():
+		return false
+	for member in Roster.bodies(get_tree()):
+		var current: Variant = member.get("health")
+		var maximum: Variant = member.get("max_health")
+		if typeof(current) not in [TYPE_INT, TYPE_FLOAT] \
+				or typeof(maximum) not in [TYPE_INT, TYPE_FLOAT]:
+			continue
+		if float(current) < float(maximum) - 0.001:
+			return true
+	return false
+
+
+## Completes the skill. Fallen players remain fallen; reviving is still the
+## Passive companion's first responsibility and the dedicated revive mechanic
+## keeps its own cost and risk.
+func complete_dance_heal() -> int:
+	if is_dead or not is_inside_tree():
+		return 0
+	var healed: int = 0
+	for member in Roster.bodies(get_tree()):
+		var maximum_value: Variant = member.get("max_health")
+		var health_value: Variant = member.get("health")
+		if typeof(maximum_value) not in [TYPE_INT, TYPE_FLOAT] \
+				or typeof(health_value) not in [TYPE_INT, TYPE_FLOAT]:
+			continue
+		var maximum: float = float(maximum_value)
+		var before: float = float(health_value)
+		var after: float = minf(before + maximum * dance_heal_fraction, maximum)
+		if after <= before:
+			continue
+		member.set("health", after)
+		healed += 1
+	if healed > 0:
+		AudioManager.play_for("sfx_pickup_health", self)
+	return healed
 
 
 func _refresh_party_control() -> void:

@@ -9,10 +9,12 @@ const MUSIC_FADE := 0.8
 const AMBIENCE_FADE := 1.2
 const POSITIONAL_MAX_DISTANCE := 1300.0
 const SETTINGS_PATH := "user://audio.cfg"
+const DEFAULT_OUTPUT_DEVICE := "Default"
+const BUS_MASTER := &"Master"
 const BUS_MUSIC := &"Music"
 const BUS_VOICE := &"Voice"
 const BUS_SFX := &"SFX"
-const VOLUME_KEYS: Array[StringName] = [BUS_MUSIC, BUS_VOICE, BUS_SFX]
+const VOLUME_KEYS: Array[StringName] = [BUS_MASTER, BUS_MUSIC, BUS_VOICE, BUS_SFX]
 ## Preserve the mix users already hear until they choose a quieter setting.
 const DEFAULT_VOLUME := 1.0
 
@@ -29,12 +31,13 @@ var _rng := RandomNumberGenerator.new()
 var _web_audio_unlocked: bool = false
 var _requested_music: Dictionary = {}
 var _requested_ambience: Dictionary = {}
+var _preferred_output_device: String = DEFAULT_OUTPUT_DEVICE
 
 
 func _ready() -> void:
 	_rng.randomize()
 	_ensure_buses()
-	_load_volumes()
+	_load_settings()
 	_index_library()
 	_music = _loop_player("Music", BUS_MUSIC)
 	_ambience = _loop_player("Ambience", BUS_MUSIC)
@@ -252,7 +255,57 @@ func set_volume(bus: StringName, value: float, save: bool = true) -> void:
 	AudioServer.set_bus_mute(index, level <= 0.001)
 	AudioServer.set_bus_volume_db(index, linear_to_db(maxf(level, 0.001)))
 	if save:
-		_save_volumes()
+		_save_settings()
+
+
+## Desktop builds may offer an explicit device override. "Default" deliberately
+## remains the recommended choice because it follows headset/speaker changes
+## made in the operating system. Web builds generally expose only that route.
+func output_devices() -> PackedStringArray:
+	var devices := AudioServer.get_output_device_list()
+	if DEFAULT_OUTPUT_DEVICE not in devices:
+		devices.insert(0, DEFAULT_OUTPUT_DEVICE)
+	return devices
+
+
+func preferred_output_device() -> String:
+	return _preferred_output_device
+
+
+func refresh_output_device() -> PackedStringArray:
+	var devices := output_devices()
+	var available := _preferred_output_device in devices
+	var target := _preferred_output_device if available else DEFAULT_OUTPUT_DEVICE
+	if AudioServer.output_device != target:
+		AudioServer.output_device = target
+	return devices
+
+
+func set_output_device(device: String, save: bool = true) -> void:
+	_preferred_output_device = device if device in output_devices() else DEFAULT_OUTPUT_DEVICE
+	refresh_output_device()
+	if save:
+		_save_settings()
+
+
+func reset_audio_settings() -> void:
+	for bus in VOLUME_KEYS:
+		set_volume(bus, DEFAULT_VOLUME, false)
+	_preferred_output_device = DEFAULT_OUTPUT_DEVICE
+	refresh_output_device()
+	_save_settings()
+
+
+func play_test_sound() -> void:
+	var path := _pick("sfx_katana_draw")
+	if path.is_empty():
+		return
+	var player := _free_ui_player()
+	player.stream = load(path)
+	player.bus = BUS_MASTER
+	player.volume_db = -2.0
+	player.pitch_scale = 1.0
+	player.play()
 
 
 func _ensure_buses() -> void:
@@ -265,19 +318,23 @@ func _ensure_buses() -> void:
 		AudioServer.set_bus_send(index, &"Master")
 
 
-func _load_volumes() -> void:
+func _load_settings() -> void:
 	var config := ConfigFile.new()
 	var loaded := config.load(SETTINGS_PATH) == OK
 	for bus in VOLUME_KEYS:
 		var value := float(config.get_value("volume", String(bus).to_lower(), DEFAULT_VOLUME)) \
 				if loaded else DEFAULT_VOLUME
 		set_volume(bus, value, false)
+	_preferred_output_device = str(config.get_value(
+			"output", "device", DEFAULT_OUTPUT_DEVICE)) if loaded else DEFAULT_OUTPUT_DEVICE
+	refresh_output_device()
 
 
-func _save_volumes() -> void:
+func _save_settings() -> void:
 	var config := ConfigFile.new()
 	for bus in VOLUME_KEYS:
 		config.set_value("volume", String(bus).to_lower(), volume(bus))
+	config.set_value("output", "device", _preferred_output_device)
 	config.save(SETTINGS_PATH)
 
 

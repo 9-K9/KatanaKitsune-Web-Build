@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="LevelTheme" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/system/LevelTheme.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = 2
+display_name = "Abandoned Shrines"
+description = "Weathered halls, weeds through old paving and scattered bamboo. Sparse wildlife under passing rain."
+icon_path = "res://assets/pixellab/level_icons/abandoned_shrines.png"
+walls = Array[String](["rusticWoodenWall", "woodenWall2", "rusticBrickWall", "rusticBrickWall2"])
+trees = Array[String](["black_pine", "black_pine", "bamboo_clump", "bamboo_clump", "sakura_tree_c"])
+edge_trees = Array[String](["black_pine", "black_pine", "bamboo_clump"])
+outdoor_animals = Array[String](["rat", "crow", "snake", "fox"])
+indoor_animals = Array[String](["rat", "rat"])
+pond_animals = Array[String](["frog"])
+tree_density = 0.75
+grass_density = 1.25
+animal_density = 0.5
+road_earth_chance = 0.4
+road_weed_chance = 0.25
+courtyard_earth_chance = 0.5
+ornament_chance = 0.05
+moonlight = Color(0.56, 0.62, 0.75, 1)

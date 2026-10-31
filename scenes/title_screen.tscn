@@ -150,7 +150,7 @@ theme_override_styles/normal = SubResource("StyleBox_button_normal")
 theme_override_styles/pressed = SubResource("StyleBox_button_pressed")
 theme_override_styles/hover = SubResource("StyleBox_button_hover")
 theme_override_styles/focus = SubResource("StyleBox_button_hover")
-text = "◆   FULL ONLINE — 9-K9.IO   ◆"
+text = "◆   ONLINE CO-OP   ◆"
 
 [node name="Settings" type="Button" parent="UI/SafeArea/VBox/ButtonBox"]
 custom_minimum_size = Vector2(310, 38)
@@ -185,6 +185,7 @@ layout_mode = 2
 theme_override_constants/separation = 6
 script = ExtResource("5_settings")
 font_size = 16
+panel_height = 250
 
 [node name="Credit" type="Label" parent="UI/SafeArea/VBox" unique_id=1418643452]
 layout_mode = 2

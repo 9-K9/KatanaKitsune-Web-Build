@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="LevelTheme" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/system/LevelTheme.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = 1
+display_name = "Bamboo Woodland"
+description = "Bamboo groves, pine shade and earthen trails around secluded wooden shrines. Calm spells and rain."
+icon_path = "res://assets/pixellab/level_icons/bamboo_woodland.png"
+walls = Array[String](["japaneseWall", "woodenWall", "woodenWall2", "rusticWoodenWall"])
+trees = Array[String](["bamboo_clump", "bamboo_clump", "bamboo_clump", "bamboo_clump", "black_pine"])
+edge_trees = Array[String](["bamboo_clump", "bamboo_clump", "bamboo_clump", "black_pine"])
+outdoor_animals = Array[String](["snake", "snake", "crow", "tanuki"])
+indoor_animals = Array[String](["rat"])
+tree_density = 1.25
+grass_density = 1.0
+road_earth_chance = 0.85
+road_weed_chance = 0.05
+courtyard_earth_chance = 0.35
+ornament_chance = 0.15
+moonlight = Color(0.52, 0.73, 0.72, 1)

@@ -23,10 +23,16 @@ const MATCH_SCENE := "res://scenes/world/mazeDemo.tscn"
 
 const DEFAULT_PORT: int = 8910
 const ACTOR_SNAPSHOT_INTERVAL: float = 0.05
+## Remote enemies are rendered between server snapshots instead of being
+## snapped to each 20 Hz sample.  The generous teleport distance still makes
+## room changes and server corrections immediate.
+const ENEMY_SMOOTHING_SPEED: float = 18.0
+const ENEMY_TELEPORT_DISTANCE: float = 192.0
 const NETWORK_ACTIONS: PackedStringArray = [
 	"Left", "Right", "Up", "Down", "Run", "Katana", "Attack", "Defend",
 	"Dodge", "Action", "Jump", "Stealth", "Scroll1", "Scroll2", "Scroll3",
 	"Scroll4", "Scroll5", "Scroll6", "ScrollUse", "ScrollPrevious", "ScrollNext",
+	"RescueAI",
 ]
 
 var is_server: bool = false
@@ -37,6 +43,8 @@ var _session_started: bool = false
 var _pending_seed: int = 0
 var _pending_theme: int = 0
 var _snapshot_left: float = 0.0
+var _enemy_snapshot_targets: Dictionary = {}
+var _player_audio_states: Dictionary = {}
 ## Which local device drives this client's character online. Picked on the
 ## lobby screen by whoever presses a button first; keyboard until then.
 var client_device: int = PlayerInput.KEYBOARD
@@ -72,6 +80,7 @@ func _physics_process(_delta: float) -> void:
 			or multiplayer.multiplayer_peer.get_connection_status() \
 			!= MultiplayerPeer.CONNECTION_CONNECTED:
 		return
+	_smooth_remote_enemies(_delta)
 	var actions: Dictionary = {}
 	for action in NETWORK_ACTIONS:
 		actions[action] = _client_input.pressed(action)
@@ -183,6 +192,8 @@ func stop() -> void:
 	is_client = false
 	_session_started = false
 	_room_leader_peer = 0
+	_enemy_snapshot_targets.clear()
+	_player_audio_states.clear()
 	## The online roster was the server's party, not this machine's; leaving
 	## it behind would seat ghosts in the next local game.
 	if was_online:
@@ -583,6 +594,25 @@ func announce_world_event(kind: String, node: Node2D) -> void:
 		rpc("receive_world_event", kind, world_key(node))
 
 
+## Enemy loot is dynamic rather than part of the shared seeded floor. Send a
+## reliable event before it can be collected; the enemy itself suppresses a
+## duplicate if the ordinary death snapshot arrived first.
+func announce_enemy_drop(enemy: Node) -> void:
+	if is_server:
+		rpc("receive_enemy_drop", int(enemy.get("network_id")))
+
+
+@rpc("authority", "call_remote", "reliable")
+func receive_enemy_drop(network_id: int) -> void:
+	if not is_client:
+		return
+	for enemy in get_tree().get_nodes_in_group("enemy"):
+		if int(enemy.get("network_id")) == network_id:
+			if enemy.has_method("network_enemy_drop"):
+				enemy.network_enemy_drop()
+			return
+
+
 @rpc("authority", "call_remote", "reliable")
 func receive_world_event(kind: String, key: Vector2i) -> void:
 	if not is_client:
@@ -694,6 +724,7 @@ func receive_actor_snapshot(players: Array, enemies: Array) -> void:
 		for body in get_tree().get_nodes_in_group("player"):
 			if not (body is CharacterBody2D) or int(body.get("slot")) != slot:
 				continue
+			_play_replicated_player_audio(body, slot, state)
 			body.global_position = state.get("position", body.global_position)
 			body.velocity = state.get("velocity", Vector2.ZERO)
 			body.health = state.get("health", body.health)
@@ -722,8 +753,17 @@ func receive_actor_snapshot(players: Array, enemies: Array) -> void:
 		for enemy in get_tree().get_nodes_in_group("enemy"):
 			if not ("network_id" in enemy) or int(enemy.get("network_id")) != network_id:
 				continue
-			enemy.global_position = state.get("position", enemy.global_position)
-			enemy.velocity = state.get("velocity", Vector2.ZERO)
+			var snapshot_position: Vector2 = state.get("position", enemy.global_position)
+			var snapshot_velocity: Vector2 = state.get("velocity", Vector2.ZERO)
+			if not _enemy_snapshot_targets.has(network_id) \
+					or enemy.global_position.distance_to(snapshot_position) \
+					> ENEMY_TELEPORT_DISTANCE:
+				enemy.global_position = snapshot_position
+			_enemy_snapshot_targets[network_id] = {
+				"position": snapshot_position,
+				"velocity": snapshot_velocity,
+			}
+			enemy.velocity = snapshot_velocity
 			enemy.health = state.get("health", enemy.health)
 			if enemy.has_method("_refresh_health_bar"):
 				enemy.call("_refresh_health_bar")
@@ -736,6 +776,69 @@ func receive_actor_snapshot(players: Array, enemies: Array) -> void:
 			_apply_actor_state(enemy, String(state.get("state", "")))
 			_apply_actor_animation(enemy, state.get("animation_state", {}))
 			break
+
+
+func _play_replicated_player_audio(body: Node, slot: int, state: Dictionary) -> void:
+	## Online clients do not run the authoritative player state machines, so
+	## their usual on_enter/damage callbacks cannot make sound. Derive the
+	## one-shot voice cues from the same state and health snapshots that drive
+	## their visuals. The first snapshot only establishes a baseline so joining
+	## a match never invents an action sound halfway through a clip.
+	var state_name := String(state.get("state", ""))
+	var health := float(state.get("health", body.get("health")))
+	var dead := bool(state.get("is_dead", false))
+	if not _player_audio_states.has(slot):
+		_player_audio_states[slot] = {
+			"state": state_name,
+			"health": health,
+			"dead": dead,
+		}
+		return
+	var previous: Dictionary = _player_audio_states[slot]
+	var previous_state := String(previous.get("state", ""))
+	var was_dead := bool(previous.get("dead", false))
+	var previous_health := float(previous.get("health", health))
+	if dead and not was_dead:
+		AudioManager.play_for("vox_kitsune_downed", body)
+	elif health < previous_health:
+		AudioManager.play_for("vox_kitsune_hurt", body, -2.0)
+	if state_name != previous_state:
+		match state_name:
+			"katanaChargeAttack":
+				AudioManager.play_for("vox_kitsune_heavy", body, -4.0)
+			"katanaSlashStand", "katanaSlashCrouched", "katanaCounterSlash", \
+					"katanaKick", "midKick", "roundKick", "highKick", "flair":
+				AudioManager.play_for("vox_kitsune_attack", body, -4.0)
+			"forwardRoll", "katanaJump", "runningJump":
+				AudioManager.play_for("vox_kitsune_movement", body, -7.0)
+	_player_audio_states[slot] = {
+		"state": state_name,
+		"health": health,
+		"dead": dead,
+	}
+
+
+func _smooth_remote_enemies(delta: float) -> void:
+	if _enemy_snapshot_targets.is_empty():
+		return
+	var live_ids: Dictionary = {}
+	var weight := 1.0 - exp(-ENEMY_SMOOTHING_SPEED * delta)
+	for enemy in get_tree().get_nodes_in_group("enemy"):
+		if not (enemy is CharacterBody2D) or not ("network_id" in enemy):
+			continue
+		var network_id: int = int(enemy.get("network_id"))
+		if not _enemy_snapshot_targets.has(network_id):
+			continue
+		live_ids[network_id] = true
+		var target: Dictionary = _enemy_snapshot_targets[network_id]
+		## Lead by one snapshot so a steadily moving enemy does not visibly lag
+		## behind the server while still smoothing packet timing variation.
+		var render_position: Vector2 = target["position"] \
+				+ target["velocity"] * ACTOR_SNAPSHOT_INTERVAL
+		enemy.global_position = enemy.global_position.lerp(render_position, weight)
+	for network_id in _enemy_snapshot_targets.keys():
+		if not live_ids.has(network_id):
+			_enemy_snapshot_targets.erase(network_id)
 
 
 func _apply_actor_state(body: Node, state_name: String) -> void:
@@ -760,14 +863,19 @@ func _apply_actor_animation(body: Node, animation_state: Variant) -> void:
 	var animation := StringName(animation_state.get("animation", ""))
 	if animation.is_empty() or not sprite.sprite_frames.has_animation(animation):
 		return
-	if sprite.animation != animation:
+	var animation_changed := sprite.animation != animation
+	if animation_changed:
 		sprite.animation = animation
 	sprite.speed_scale = float(animation_state.get("speed_scale", 1.0))
 	sprite.flip_h = bool(animation_state.get("flip_h", false))
 	var last_frame := maxi(0, sprite.sprite_frames.get_frame_count(animation) - 1)
 	var frame := clampi(int(animation_state.get("frame", 0)), 0, last_frame)
 	var progress := clampf(float(animation_state.get("frame_progress", 0.0)), 0.0, 1.0)
-	sprite.set_frame_and_progress(frame, progress)
+	## Let the client advance an unchanged clip locally. Re-applying the
+	## authority's frame every snapshot makes sprites visibly bounce between
+	## frames whenever network timing and render timing differ.
+	if animation_changed:
+		sprite.set_frame_and_progress(frame, progress)
 	if bool(animation_state.get("playing", false)):
 		if not sprite.is_playing():
 			sprite.play()

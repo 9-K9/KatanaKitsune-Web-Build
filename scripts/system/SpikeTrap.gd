@@ -123,6 +123,8 @@ func take_damage(amount: float, _from: Vector2 = Vector2.INF,
 	if health > 0.0:
 		return
 	_broken = true
+	LootDrops.breakable(self)
+	NetworkManager.announce_world_event("break", self)
 	remove_from_group("breakable")
 	remove_from_group("bot_hazard")
 	set_physics_process(false)
@@ -133,3 +135,10 @@ func take_damage(amount: float, _from: Vector2 = Vector2.INF,
 	var fade := create_tween()
 	fade.tween_property(sprite, "modulate:a", 0.0, 0.32)
 	fade.tween_callback(queue_free)
+
+
+func network_break() -> void:
+	if _broken:
+		return
+	health = 0.0
+	take_damage(0.0)

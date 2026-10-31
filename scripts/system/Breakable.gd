@@ -182,6 +182,7 @@ func _break() -> void:
 		break_event = "sfx_break_stone"
 	AudioManager.play_for(break_event, self)
 	NetworkManager.announce_world_event("break", self)
+	LootDrops.breakable(self)
 	remove_from_group("breakable")
 	set_process(false)
 	## Drop out of collision immediately so the player is not left shoving an

@@ -1,24 +1,5 @@
 extends Control
 
-const FULL_VERSION_URL := "https://play.9-k9.io"
-const DISPLAY_NAMES: Array[String] = [
-	"Sakura Gardens", "Bamboo Woodland", "Abandoned Shrines", "Desert Ruins", "Frozen Pass",
-]
-const LOCKED_DESCRIPTIONS: Array[String] = [
-	"",
-	"Locked in the itch.io Web Edition. Play the full version at 9-k9.io.",
-	"Locked in the itch.io Web Edition. Play the full version at 9-k9.io.",
-	"Locked in the itch.io Web Edition. Play the full version at 9-k9.io.",
-	"Locked in the itch.io Web Edition. Play the full version at 9-k9.io.",
-]
-const ICON_PATHS: Array[String] = [
-	"res://assets/pixellab/level_icons/sakura_gardens.png",
-	"res://assets/pixellab/level_icons/bamboo_woodland.png",
-	"res://assets/pixellab/level_icons/abandoned_shrines.png",
-	"res://assets/pixellab/level_icons/desert_ruins.png",
-	"res://assets/pixellab/level_icons/frozen_pass.png",
-]
-
 signal selected(theme_id: int)
 signal cancelled()
 
@@ -31,12 +12,13 @@ var _highlighted: int = 0
 var _repeat: float = 0.0
 var _arming: float = 0.0
 var _buttons: Array[Button] = []
-var _sakura: LevelTheme = null
+var _themes: Array[LevelTheme] = []
 
 
 func _ready() -> void:
-	_sakura = LevelTheme.definition(LevelTheme.Id.SAKURA_GARDENS)
 	for i in LevelTheme.NAMES.size():
+		var theme := LevelTheme.definition(i)
+		_themes.append(theme)
 		var button := Button.new()
 		button.custom_minimum_size = Vector2(260, 300)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -50,9 +32,9 @@ func _ready() -> void:
 		content.offset_bottom = -12
 		content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var icon := TextureRect.new()
-		icon.texture = load(ICON_PATHS[i]) as Texture2D
+		icon.texture = load(theme.icon_path) as Texture2D
 		if icon.texture == null:
-			push_error("LevelSelect: missing theme icon: " + ICON_PATHS[i])
+			push_error("LevelSelect: missing theme icon: " + theme.icon_path)
 		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		icon.custom_minimum_size = Vector2(220, 220)
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -60,7 +42,7 @@ func _ready() -> void:
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		content.add_child(icon)
 		var label := Label.new()
-		label.text = DISPLAY_NAMES[i] if i == 0 else "🔒 " + DISPLAY_NAMES[i]
+		label.text = theme.display_name
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.add_theme_font_size_override("font_size", 24)
 		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -84,7 +66,7 @@ func open() -> void:
 
 func _show(index: int) -> void:
 	_highlighted = index
-	description.text = _sakura.description if index == 0 else LOCKED_DESCRIPTIONS[index]
+	description.text = _themes[index].description
 	for i in _buttons.size():
 		var style := StyleBoxFlat.new()
 		style.bg_color = Color(0.2, 0.09, 0.14, 0.98) if i == index else Color(0.06, 0.04, 0.08, 0.96)
@@ -92,7 +74,7 @@ func _show(index: int) -> void:
 		style.border_color = Color(1.0, 0.8, 0.4) if i == index else Color(0.4, 0.3, 0.22)
 		for state in ["normal", "hover", "pressed"]:
 			_buttons[i].add_theme_stylebox_override(state, style)
-	begin.text = (tr("BEGIN") + " — " + DISPLAY_NAMES[index]) if index == 0 else "PLAY FULL VERSION — 9-K9.IO"
+	begin.text = tr("BEGIN") + " — " + tr(_themes[index].display_name)
 
 
 func _process(delta: float) -> void:
@@ -115,18 +97,15 @@ func _process(delta: float) -> void:
 		elif _driver.pressed("MenuLeft") or _driver.pressed("MenuUp"):
 			step = -1
 		if step != 0:
-			_show(wrapi(_highlighted + step, 0, DISPLAY_NAMES.size()))
+			_show(wrapi(_highlighted + step, 0, _themes.size()))
 			_repeat = 0.18
 
 
 func _begin() -> void:
 	if not visible or _arming > 0.0:
 		return
-	if _highlighted != LevelTheme.Id.SAKURA_GARDENS:
-		OS.shell_open(FULL_VERSION_URL)
-		return
 	visible = false
-	selected.emit(LevelTheme.Id.SAKURA_GARDENS)
+	selected.emit(_highlighted)
 
 
 func _back() -> void:

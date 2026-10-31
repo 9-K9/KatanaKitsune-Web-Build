@@ -35,9 +35,12 @@ func on_process(delta):
 		change_state("forwardRoll")
 	if pc.input.just_pressed("Jump"):
 		change_state("runningJump")
-	## Unarmed, Defend is the taunt — it pulls a patrol off its route.
+	## Unarmed, Defend begins the risky party-healing dance.
 	if pc.input.just_pressed("Defend"):
-		change_state("seductiveDance")
+		if pc.can_dance_heal():
+			change_state("seductiveDance")
+		else:
+			AudioManager.play("ui_error", -4.0)
 		return
 
 	_still_for += delta

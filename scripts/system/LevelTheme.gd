@@ -32,14 +32,13 @@ const NAMES: Array[String] = [
 
 
 static func definition(which: int) -> LevelTheme:
-	## Itch.io Web Edition: Sakura Gardens is the only shipped level. This
-	## fallback also prevents stale saves or crafted calls from reaching assets
-	## intentionally omitted from this edition.
-	return load("res://resources/level_themes/sakura_gardens.tres") as LevelTheme
+	return load("res://resources/level_themes/%s.tres" %
+			NAMES[clampi(which, 0, NAMES.size() - 1)]) as LevelTheme
 
 
 static func music_key(which: int) -> String:
-	return "sakura"
+	return ["sakura", "bamboo", "abandoned", "desert", "snow"][
+			clampi(which, 0, NAMES.size() - 1)]
 
 
 func exterior_biome() -> ExteriorBiome:

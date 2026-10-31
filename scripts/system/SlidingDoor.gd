@@ -1,6 +1,8 @@
 class_name SlidingDoor
 extends StaticBody2D
 
+signal human_crossed(player: CharacterBody2D)
+
 ## A shoji door set into a maze wall. It slides open when anyone comes near —
 ## a player or a monster — and shuts again once they have all gone. A katana
 ## (or a claw) can smash it, which leaves it torn and permanently open.
@@ -32,6 +34,7 @@ extends StaticBody2D
 const SHADER := preload("res://shaders/shojiSlide.gdshader")
 const FADE_PARAMS: PackedStringArray = [
 	"subjects", "subject_count", "extents", "rise", "softness", "min_alpha"]
+const CROSS_SIDE_MARGIN: float = 18.0
 
 var health: float = 0.0
 var _open: float = 0.0
@@ -43,6 +46,7 @@ var _occluder: LightOccluder2D = null
 var _centre: Vector2 = Vector2.ZERO
 var _flash_tween: Tween = null
 var _was_moving: bool = false
+var _human_sides: Dictionary[int, int] = {}
 
 
 func _ready() -> void:
@@ -83,6 +87,7 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_copy_fade()
+	_track_human_crossings()
 	if _broken:
 		return
 	var wanted: float = 1.0 if _anyone_near() else 0.0
@@ -109,6 +114,38 @@ func _anyone_near() -> bool:
 			if (node as Node2D).global_position.distance_to(here) <= open_radius:
 				return true
 	return false
+
+
+## Watches the stable side of the panel each human occupies. Crossing its
+## centre line while still within the doorway span is a real traversal, not
+## merely walking past one end of the wall.
+func _track_human_crossings() -> void:
+	var seen: Dictionary[int, bool] = {}
+	var normal := Vector2(-slope, 1.0).normalized()
+	var tangent := Vector2(1.0, slope).normalized()
+	for node in get_tree().get_nodes_in_group("player"):
+		if not (node is CharacterBody2D) or node.get("is_dead") == true:
+			continue
+		var player := node as CharacterBody2D
+		var slot: int = int(player.get("slot"))
+		if Roster.count() > slot and Roster.is_ai_controlled(slot):
+			continue
+		var relative := to_local(player.global_position) - _centre
+		if relative.length() > open_radius * 1.4:
+			continue
+		var key := player.get_instance_id()
+		seen[key] = true
+		var across: float = relative.dot(normal)
+		if absf(across) < CROSS_SIDE_MARGIN:
+			continue
+		var side: int = 1 if across > 0.0 else -1
+		var previous: int = _human_sides.get(key, side)
+		_human_sides[key] = side
+		if previous != side and absf(relative.dot(tangent)) <= half_width * 1.8 + 48.0:
+			human_crossed.emit(player)
+	for key in _human_sides.keys():
+		if not seen.has(key):
+			_human_sides.erase(key)
 
 
 func _set_solid(solid: bool) -> void:
@@ -157,3 +194,12 @@ func _break() -> void:
 	if broken_texture != null:
 		_sprite.texture = broken_texture
 	_set_solid(false)
+	LootDrops.breakable(self)
+	NetworkManager.announce_world_event("break", self)
+
+
+func network_break() -> void:
+	if _broken:
+		return
+	health = 0.0
+	_break()

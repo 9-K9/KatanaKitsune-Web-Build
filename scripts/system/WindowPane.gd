@@ -14,6 +14,7 @@ var cell: Vector2i = Vector2i.ZERO
 var broken_source: int = -1
 
 var health: float = 0.0
+var _broken: bool = false
 
 
 func _ready() -> void:
@@ -25,6 +26,8 @@ func _ready() -> void:
 
 func take_damage(amount: float, _from: Vector2 = Vector2.INF,
 		_guardable: bool = true) -> void:
+	if _broken:
+		return
 	health -= amount
 	if layer != null:
 		var tween := create_tween()
@@ -35,6 +38,11 @@ func take_damage(amount: float, _from: Vector2 = Vector2.INF,
 
 
 func _break() -> void:
+	if _broken:
+		return
+	_broken = true
+	LootDrops.breakable(self)
+	NetworkManager.announce_world_event("break", self)
 	remove_from_group("breakable")
 	if layer != null and broken_source >= 0:
 		layer.set_cell(cell, broken_source, Vector2i.ZERO)
@@ -43,3 +51,10 @@ func _break() -> void:
 			if child is LightOccluder2D and (child as Node2D).position.is_equal_approx(here):
 				child.queue_free()
 	queue_free()
+
+
+func network_break() -> void:
+	if _broken:
+		return
+	health = 0.0
+	_break()

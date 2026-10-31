@@ -12,6 +12,8 @@ class ModeProbe extends CharacterBody2D:
 	var katana_drawn: bool = false
 	var actionBlockInput: bool = false
 	var stealthed: bool = false
+	var health: float = 100.0
+	var max_health: float = 100.0
 	var sneak: float = 100.0
 	var flair_sneak_cost: float = 35.0
 	var last_hurt_by: WeakRef = null
@@ -218,14 +220,19 @@ func _tactics_checks() -> void:
 	enemy._last_hit_at_ms = -1
 
 	human.hurt_by(enemy)
-	for mode in [M.DEFENSIVE, M.STEALTH, M.PASSIVE]:
+	for mode in [M.DEFENSIVE, M.STEALTH]:
 		_check(BotTactics.provokes(mode, bot, human, enemy),
 				"%s defends a hurt human" % Roster.BOT_MODE_NAMES[mode])
+	_check(not BotTactics.provokes(M.PASSIVE, bot, human, enemy),
+			"Passive leaves party combat to its protection specialists")
 	human.last_hurt_by = null
 
 	bot.hurt_by(enemy)
 	_check(BotTactics.provokes(M.PASSIVE, bot, human, enemy), "Passive answers its own attacker")
-	_check(BotTactics.provokes(M.DEFENSIVE, bot, human, enemy), "Defensive answers its own attacker")
+	_check(not BotTactics.provokes(M.DEFENSIVE, bot, human, enemy),
+			"Defensive only joins the human player's fights")
+	_check(BotTactics.provokes(M.STEALTH, bot, human, enemy),
+			"Stealth still defends itself when discovered")
 	bot.last_hurt_by = null
 
 	human.stealthed = true
@@ -409,6 +416,21 @@ func _live_checks() -> void:
 	_check(not bot.katana_drawn, "Passive sheathes when there is nothing to protect")
 	enemy._last_hit_at_ms = -1
 
+	## An injured teammate makes Passive complete its real dance and heal. Stop
+	## on the first completion so a still-injured party does not start a second.
+	human.health = 50.0
+	var dance_started := false
+	for _i in 600:
+		await get_tree().physics_frame
+		dance_started = dance_started or machine.current_state.name == &"seductiveDance"
+		if human.health > 50.0:
+			break
+	_check(dance_started and is_equal_approx(human.health, 60.0),
+			"Passive completes the dance to heal an injured teammate by ten percent")
+	_check(bot.stamina <= bot.max_stamina * 0.751 and bot.sneak <= bot.max_sneak * 0.751,
+			"Passive dance pays one quarter of stamina and stealth")
+	human.health = human.max_health
+
 	Roster.set_mode(1, Roster.BotMode.STEALTH)
 	human.stealthed = true
 	enemy.aware(true)
@@ -434,6 +456,19 @@ func _live_checks() -> void:
 	enemy.hits = 0
 	await _run_frames(300)
 	_check(enemy.hits > 0, "Aggressive attacks unprovoked")
+	enemy.is_dead = true
+	var distant := EnemyProbe.new()
+	distant.position = Vector2(1600, 0)
+	distant.add_to_group("enemy")
+	_world.add_child(distant)
+	input._target = null
+	input._choose_target(bot)
+	_check(input._living(input._target) == distant,
+			"Aggressive hunts a living enemy beyond sight and the party leash")
+	distant.position = Vector2(2400, 0)
+	input._choose_target(bot)
+	_check(input._living(input._target) == distant,
+			"Aggressive keeps hunting its target until that enemy dies")
 	_world.queue_free()
 	await _frames(2)
 

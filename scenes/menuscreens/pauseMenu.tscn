@@ -138,6 +138,7 @@ custom_minimum_size = Vector2(196, 0)
 layout_mode = 2
 theme_override_constants/separation = 1
 script = ExtResource("4_settings")
+panel_height = 420
 
 [connection signal="pressed" from="Center/Panel/Margin/MainMenu/Resume" to="." method="_on_resume_pressed"]
 [connection signal="pressed" from="Center/Panel/Margin/MainMenu/Settings" to="." method="_on_settings_pressed"]

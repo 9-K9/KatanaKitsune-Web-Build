@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="LevelTheme" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/system/LevelTheme.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = 4
+biome = 2
+display_name = "Frozen Pass"
+description = "A mountain shrine buried in snow. Bare trees, frozen stone and quiet tracks through the drifts."
+icon_path = "res://assets/pixellab/level_icons/frozen_pass.png"
+walls = Array[String](["japaneseWall2", "japaneseWall3", "woodenWall", "rusticWoodenWall"])
+small_props = Array[String]([])
+weather = Array[int]([0, 3])
+outdoor_animals = Array[String](["rabbit", "rabbit", "snow_fox", "squirrel", "crow"])
+indoor_animals = Array[String](["rat"])
+pond_animals = Array[String]([])
+animal_density = 0.6
+ornament_chance = 0.1
+moonlight = Color(0.66, 0.77, 1, 1)

@@ -207,6 +207,7 @@ func suppress_held_actions() -> void:
 		if not _now[action]:
 			continue
 		if action in ["Attack", "Defend", "Katana", "Stealth", "Dodge", "Jump"] \
+				or action == "RescueAI" \
 				or String(action).begins_with("Scroll"):
 			_held_until_release[action] = true
 			_now[action] = false
